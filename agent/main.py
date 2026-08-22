@@ -1,8 +1,8 @@
 import time
 
-from collectors.cpu import get_cpu_usage
-from config import MONITOR_INTERVAL
-from health import get_cpu_status
+from .collectors.cpu import get_cpu_usage
+from .config import MONITOR_INTERVAL
+from .health import get_cpu_status
 
 
 def main():
