@@ -9,13 +9,18 @@ def main():
     print("Resilio monitoring agent started.")
     print(f"Monitoring interval: {MONITOR_INTERVAL} seconds\n")
 
-    while True:
-        cpu_usage = get_cpu_usage()
-        status = get_cpu_status(cpu_usage)
+    try:
+        while True:
+            cpu_usage = get_cpu_usage()
+            status = get_cpu_status(cpu_usage)
 
-        print(f"CPU Usage: {cpu_usage}% | Status: {status}")
+            print(f"CPU Usage: {cpu_usage}% | Status: {status}")
 
-        time.sleep(MONITOR_INTERVAL)
+            time.sleep(MONITOR_INTERVAL)
+
+    except KeyboardInterrupt:
+        print("\nStopping Resilio monitoring agent...")
+        print("Agent stopped.")
 
 
 if __name__ == "__main__":
