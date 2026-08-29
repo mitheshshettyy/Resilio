@@ -26,3 +26,10 @@ def get_disk_status(disk_usage):
         return "WARNING"
     else:
         return "HEALTHY"
+
+
+def get_process_status(process_info):
+    if process_info is None:
+        return "CRITICAL"
+
+    return "HEALTHY"
