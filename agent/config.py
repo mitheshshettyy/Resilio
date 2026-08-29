@@ -30,3 +30,5 @@ DISK_WARNING_THRESHOLD = float(
 DISK_CRITICAL_THRESHOLD = float(
     os.getenv("DISK_CRITICAL_THRESHOLD", "90")
 )
+
+PROCESS_NAME = os.getenv("PROCESS_NAME", "python.exe")
