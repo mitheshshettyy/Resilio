@@ -50,3 +50,13 @@ def get_process_status(process_info):
 
     else:
         return "HEALTHY"
+
+
+def get_network_status(network_info):
+    if network_info is None:
+        return "CRITICAL"
+
+    if not network_info["is_up"]:
+        return "CRITICAL"
+
+    return "HEALTHY"
