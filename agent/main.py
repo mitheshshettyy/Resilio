@@ -25,7 +25,7 @@ def main():
             memory_status = get_memory_status(memory_usage)
             disk_status = get_disk_status(disk_usage)
             process_status = get_process_status(process_info)
-            network_status = get_network_status(network_info) 
+            network_status = get_network_status(network_info)
 
             if network_info:
                 print(f"CPU Usage: {cpu_usage}% | CPU Status: {cpu_status} | "f"Memory Usage: {memory_usage}% | Memory Status: {memory_status} | "f"Disk Usage: {disk_usage}% | Disk Status: {disk_status} | "f"Process: {process_info['name']} | PID: {process_info['pid']} | "f"Process Status: {process_status} | "f"Network: {network_info['interface']} | "f"Network Status: {network_status} | "f"Bytes Sent: {network_info['bytes_sent']} | "f"Bytes Received: {network_info['bytes_recv']}")
