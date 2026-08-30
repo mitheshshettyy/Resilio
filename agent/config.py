@@ -48,3 +48,5 @@ PROCESS_MEMORY_CRITICAL_THRESHOLD = float(
 )
 
 PROCESS_NAME = os.getenv("PROCESS_NAME", "python.exe")
+
+NETWORK_INTERFACE = os.getenv("NETWORK_INTERFACE", "Wi-Fi")
