@@ -1,14 +1,31 @@
 # Resilio
 
-Resilio is an infrastructure monitoring and auto-recovery project designed to detect system health issues and respond automatically.
+Resilio is an infrastructure monitoring and auto-recovery system designed to continuously monitor system health, identify potential issues, and provide a foundation for automated recovery.
 
-## Current Features
+## Overview
 
-* CPU health monitoring
-* Memory health monitoring
-* Health status classification: `HEALTHY`, `WARNING`, `CRITICAL`
+Resilio is being developed as a modular and extensible monitoring system. It collects system-level information, evaluates health conditions, and provides meaningful health classifications.
 
-## Project Setup
+The project is designed to evolve incrementally as additional monitoring and recovery capabilities are introduced.
+
+## Features
+
+- System resource monitoring
+- Process monitoring
+- Network monitoring
+- Health status evaluation
+- Configurable monitoring parameters
+- Modular monitoring components
+- Initial automated testing for monitoring components
+
+## Getting Started
+
+### Prerequisites
+
+- Python
+- Git
+
+### Installation
 
 ```bash
 git clone <repository-url>
@@ -18,12 +35,3 @@ python -m venv .venv
 .venv\Scripts\activate
 
 pip install -r requirements.txt
-```
-
-## Run
-
-```bash
-python -m agent
-```
-
-> Resilio is currently under active development. More monitoring and auto-recovery features will be added incrementally.
