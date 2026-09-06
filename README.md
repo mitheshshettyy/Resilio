@@ -16,7 +16,7 @@ The project is designed to evolve incrementally as additional monitoring and rec
 - Health status evaluation
 - Configurable monitoring parameters
 - Modular monitoring components
-- Initial automated testing for monitoring components
+- Automated testing for monitoring components
 
 ## Getting Started
 
