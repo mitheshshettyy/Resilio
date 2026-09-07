@@ -1,0 +1,10 @@
+from agent.recovery.manager import RecoveryManager
+
+
+def test_recovery_not_implemented():
+    manager = RecoveryManager()
+
+    result = manager.recover("memory")
+
+    assert result["component"] == "memory"
+    assert result["status"] == "not_implemented"
