@@ -1,4 +1,5 @@
 from agent.recovery.process import ProcessRecovery
+from agent.recovery.memory import MemoryRecovery
 
 
 class RecoveryManager:
@@ -10,6 +11,10 @@ class RecoveryManager:
         if component == "process":
             recovery = ProcessRecovery()
             return recovery.recover(kwargs["pid"])
+
+        if component == "memory":
+            recovery = MemoryRecovery()
+            return recovery.recover()
 
         return {
             "component": component,
