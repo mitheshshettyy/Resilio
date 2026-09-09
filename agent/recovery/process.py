@@ -34,6 +34,43 @@ class ProcessRecovery:
             reverse=True,
         )
 
+    def select_recovery_candidate(self, processes, protected_names=None):
+        """Select the highest-memory process that is safe to recover."""
+        if protected_names is None:
+            protected_names = {
+                "System",
+                "System Idle Process",
+                "Registry",
+                "smss.exe",
+                "csrss.exe",
+                "wininit.exe",
+                "services.exe",
+                "lsass.exe",
+            }
+
+        protected_names = {
+            name.lower() for name in protected_names
+        }
+
+        current_pid = psutil.Process().pid
+
+        for process in processes:
+            pid = process.get("pid")
+            name = process.get("name")
+
+            if pid is None or name is None:
+                continue
+
+            if pid == current_pid:
+                continue
+
+            if name.lower() in protected_names:
+                continue
+
+            return process
+
+        return None
+
     def recover(self, pid):
         """Terminate the process and verify that it stopped."""
         try:

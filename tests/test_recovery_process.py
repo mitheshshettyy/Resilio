@@ -1,7 +1,5 @@
-from unittest.mock import patch
-from agent.recovery.process import ProcessRecovery
-
 import psutil
+from unittest.mock import patch
 
 from agent.recovery.process import ProcessRecovery
 
@@ -92,3 +90,77 @@ def test_get_memory_processes():
                 processes[i]["memory_mb"]
                 >= processes[i + 1]["memory_mb"]
             )
+
+
+def test_select_recovery_candidate():
+    recovery = ProcessRecovery()
+
+    processes = [
+        {"pid": 100, "name": "lsass.exe", "memory_mb": 1000},
+        {"pid": 200, "name": "chrome.exe", "memory_mb": 800},
+    ]
+
+    candidate = recovery.select_recovery_candidate(processes)
+
+    assert candidate["pid"] == 200
+    assert candidate["name"] == "chrome.exe"
+
+
+def test_select_recovery_candidate_skips_current_process():
+    recovery = ProcessRecovery()
+
+    current_pid = psutil.Process().pid
+
+    processes = [
+        {
+            "pid": current_pid,
+            "name": "python.exe",
+            "memory_mb": 1000,
+        },
+        {
+            "pid": 200,
+            "name": "chrome.exe",
+            "memory_mb": 800,
+        },
+    ]
+
+    candidate = recovery.select_recovery_candidate(processes)
+
+    assert candidate["pid"] == 200
+
+
+def test_select_recovery_candidate_returns_none_when_all_unsafe():
+    recovery = ProcessRecovery()
+
+    current_pid = psutil.Process().pid
+
+    processes = [
+        {
+            "pid": current_pid,
+            "name": "python.exe",
+            "memory_mb": 1000,
+        },
+        {
+            "pid": 200,
+            "name": "lsass.exe",
+            "memory_mb": 900,
+        },
+    ]
+
+    candidate = recovery.select_recovery_candidate(processes)
+
+    assert candidate is None
+
+
+def test_select_recovery_candidate_skips_missing_values():
+    recovery = ProcessRecovery()
+
+    processes = [
+        {"pid": None, "name": "chrome.exe", "memory_mb": 1000},
+        {"pid": 200, "name": None, "memory_mb": 900},
+        {"pid": 300, "name": "chrome.exe", "memory_mb": 800},
+    ]
+
+    candidate = recovery.select_recovery_candidate(processes)
+
+    assert candidate["pid"] == 300
