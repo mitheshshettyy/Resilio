@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from agent.recovery.process import ProcessRecovery
 
 import psutil
 
@@ -72,3 +73,22 @@ def test_recover_process_timeout(mock_process):
         "pid": 1234,
         "status": "recovery_failed",
     }
+
+
+def test_get_memory_processes():
+    recovery = ProcessRecovery()
+
+    processes = recovery.get_memory_processes()
+
+    assert isinstance(processes, list)
+
+    if processes:
+        assert "pid" in processes[0]
+        assert "name" in processes[0]
+        assert "memory_mb" in processes[0]
+
+        for i in range(len(processes) - 1):
+            assert (
+                processes[i]["memory_mb"]
+                >= processes[i + 1]["memory_mb"]
+            )
