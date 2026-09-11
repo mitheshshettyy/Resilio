@@ -1,37 +1,117 @@
 # Resilio
 
-Resilio is an infrastructure monitoring and auto-recovery system designed to continuously monitor system health, identify potential issues, and provide a foundation for automated recovery.
+Resilio is an infrastructure monitoring and auto-recovery system that continuously monitors a system's health, detects resource and process-related issues, and performs appropriate recovery actions when required.
 
-## Overview
-
-Resilio is being developed as a modular and extensible monitoring system. It collects system-level information, evaluates health conditions, and provides meaningful health classifications.
-
-The project is designed to evolve incrementally as additional monitoring and recovery capabilities are introduced.
+It monitors system resources such as CPU, memory, disk, network, and processes, evaluates their health, and provides automated recovery capabilities for supported issues.
 
 ## Features
 
-- System resource monitoring
-- Process monitoring
-- Network monitoring
-- Health status evaluation
-- Configurable monitoring parameters
-- Modular monitoring components
-- Automated testing for monitoring components
+* CPU monitoring
+* Memory monitoring
+* Disk monitoring
+* Network monitoring
+* Process monitoring
+* System health detection
+* Configurable monitoring parameters
+* Automated memory recovery
+* Process recovery
+* Safe process selection for recovery
+* Automated testing
+
+## Architecture
+
+```text
+                 ┌─────────────────────┐
+                 │   System Monitoring │
+                 │                     │
+                 │ CPU • Memory • Disk │
+                 │ Network • Process  │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │   Health Detection  │
+                 │                     │
+                 │ Evaluate system     │
+                 │ health & conditions │
+                 └──────────┬──────────┘
+                            │
+                 ┌──────────┴──────────┐
+                 │                     │
+              Healthy              Critical
+                 │                     │
+                 ▼                     ▼
+          ┌─────────────┐    ┌──────────────────┐
+          │  No Action  │    │ Recovery Manager │
+          └─────────────┘    └────────┬─────────┘
+                                      │
+                           ┌──────────┴──────────┐
+                           │                     │
+                           ▼                     ▼
+                    ┌──────────────┐     ┌───────────────┐
+                    │    Memory    │     │    Process    │
+                    │   Recovery   │     │   Recovery    │
+                    └──────────────┘     └───────────────┘
+```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python
-- Git
+* Python 3.x
+* Git
 
 ### Installation
+
+Clone the repository:
 
 ```bash
 git clone <repository-url>
 cd resilio
+```
 
+Create a virtual environment:
+
+```bash
 python -m venv .venv
-.venv\Scripts\activate
+```
 
+Activate the virtual environment on Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+Install the required dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+### Configuration
+
+Create a `.env` file using the provided example configuration:
+
+```bash
+copy .env.example .env
+```
+
+Update the configuration values as required.
+
+### Run Resilio
+
+Start the Resilio monitoring agent:
+
+```bash
+python -m agent.main
+```
+
+Resilio will begin monitoring the system and perform recovery actions when supported health conditions require them.
+
+### Run Tests
+
+To run the test suite:
+
+```bash
+python -m pytest
+```
