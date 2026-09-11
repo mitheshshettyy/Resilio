@@ -25,7 +25,7 @@ It monitors system resources such as CPU, memory, disk, network, and processes, 
                  │   System Monitoring │
                  │                     │
                  │ CPU • Memory • Disk │
-                 │ Network • Process  │
+                 │ Network • Process   │
                  └──────────┬──────────┘
                             │
                             ▼
