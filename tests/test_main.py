@@ -72,6 +72,36 @@ def test_monitor_once_disk_recovery(monkeypatch):
     assert recovery_manager.calls == [("disk", {})]
 
 
+def test_monitor_once_network_recovery_when_interface_is_down(monkeypatch):
+    monkeypatch.setattr("agent.main.get_cpu_usage", lambda: 20)
+    monkeypatch.setattr("agent.main.get_memory_usage", lambda: 40)
+    monkeypatch.setattr("agent.main.get_disk_usage", lambda: 40)
+    monkeypatch.setattr("agent.main.get_process_info", lambda name: None)
+    monkeypatch.setattr(
+        "agent.main.get_network_info",
+        lambda interface: {
+            "interface": interface,
+            "is_up": False,
+            "bytes_sent": 0,
+            "bytes_recv": 0,
+        },
+    )
+
+    class FakeRecoveryManager:
+        def __init__(self):
+            self.calls = []
+
+        def recover(self, component, **kwargs):
+            self.calls.append((component, kwargs))
+            return {"component": component, "status": "recovery_unavailable"}
+
+    recovery_manager = FakeRecoveryManager()
+
+    monitor_once(recovery_manager)
+
+    assert recovery_manager.calls == [("network", {"interface": "Wi-Fi"})]
+
+
 def test_monitor_once_process_recovery(monkeypatch):
     monkeypatch.setattr("agent.main.get_cpu_usage", lambda: 20)
     monkeypatch.setattr("agent.main.get_memory_usage", lambda: 40)

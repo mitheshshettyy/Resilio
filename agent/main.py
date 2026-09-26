@@ -50,6 +50,13 @@ def monitor_once(recovery_manager):
         )
         print(f"Process Recovery: {result}")
 
+    if network_status == "CRITICAL" and network_info:
+        result = recovery_manager.recover(
+            "network",
+            interface=NETWORK_INTERFACE,
+        )
+        print(f"Network Recovery: {result}")
+
     if network_info:
         print(
             f"CPU Usage: {cpu_usage}% | CPU Status: {cpu_status} | "

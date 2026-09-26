@@ -66,3 +66,24 @@ def test_manager_disk_recovery(monkeypatch):
     result = RecoveryManager().recover("disk")
 
     assert result == {"component": "disk", "status": "recovery_unavailable"}
+
+
+def test_manager_network_recovery(monkeypatch):
+    monkeypatch.setattr(
+        "agent.recovery.network.NetworkRecovery.recover",
+        lambda self, interface: {
+            "component": "network",
+            "status": "recovered",
+            "interface": interface,
+        },
+    )
+
+    result = RecoveryManager().recover("network", interface="Wi-Fi")
+
+    assert result["status"] == "recovered"
+
+
+def test_manager_network_recovery_requires_interface():
+    result = RecoveryManager().recover("network")
+
+    assert result == {"component": "network", "status": "invalid_arguments"}
