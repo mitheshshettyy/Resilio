@@ -44,3 +44,14 @@ def test_manager_unknown_component():
 
     assert result["component"] == "disk"
     assert result["status"] == "not_implemented"
+
+
+def test_manager_cpu_recovery(monkeypatch):
+    monkeypatch.setattr(
+        "agent.recovery.cpu.CpuRecovery.recover",
+        lambda self: {"component": "cpu", "status": "recovered"},
+    )
+
+    result = RecoveryManager().recover("cpu")
+
+    assert result == {"component": "cpu", "status": "recovered"}

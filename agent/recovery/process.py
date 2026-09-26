@@ -4,6 +4,16 @@ import psutil
 class ProcessRecovery:
     """Handles recovery operations for processes."""
 
+    @staticmethod
+    def iter_processes(attributes):
+        """Provide an overridable process iterator for recovery discovery."""
+        return psutil.process_iter(attributes)
+
+    @staticmethod
+    def process_errors():
+        """Return transient errors expected while inspecting processes."""
+        return (psutil.NoSuchProcess, psutil.AccessDenied)
+
     def get_memory_processes(self):
         """Return running processes ordered by memory usage."""
         processes = []
