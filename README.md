@@ -13,8 +13,11 @@ It monitors system resources such as CPU, memory, disk, network, and processes, 
 * Process monitoring
 * System health detection
 * Configurable monitoring parameters
+* Safe CPU recovery candidate selection
 * Automated memory recovery
-* Process recovery
+* Safe process recovery
+* Conservative disk recovery coordination
+* Network recovery coordination
 * Safe process selection for recovery
 * Automated testing
 
@@ -49,7 +52,8 @@ It monitors system resources such as CPU, memory, disk, network, and processes, 
                            │                     │
                            ▼                     ▼
                     ┌──────────────┐     ┌───────────────┐
-                    │    Memory    │     │    Process    │
+                    │ CPU • Memory │     │ Disk • Network│
+                    │   • Process  │     │               │
                     │   Recovery   │     │   Recovery    │
                     └──────────────┘     └───────────────┘
 ```
@@ -107,6 +111,19 @@ python -m agent.main
 ```
 
 Resilio will begin monitoring the system and perform recovery actions when supported health conditions require them.
+
+## Recovery safety
+
+CPU and process recovery terminate only a selected process after excluding
+Resilio itself and protected system process names. CPU recovery additionally
+requires a process to meet the configured process CPU critical threshold and
+verifies that total CPU usage falls after termination.
+
+Disk and network recovery are coordinated through safe recovery abstractions.
+Resilio does not delete files or reset network interfaces by default because it
+does not own a cleanup location or a portable, permission-safe interface reset
+operation. They report `recovery_unavailable` until a deployment provides an
+explicit, managed cleanup or platform-specific interface action.
 
 ### Run Tests
 
