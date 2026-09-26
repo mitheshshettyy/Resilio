@@ -1,4 +1,5 @@
 import psutil
+import os
 from unittest.mock import patch
 
 from agent.recovery.process import ProcessRecovery
@@ -7,6 +8,7 @@ from agent.recovery.process import ProcessRecovery
 @patch("agent.recovery.process.psutil.Process")
 def test_recover_process_successfully(mock_process):
     process = mock_process.return_value
+    process.name.return_value = "worker.exe"
 
     recovery = ProcessRecovery()
     result = recovery.recover(1234)
@@ -16,6 +18,7 @@ def test_recover_process_successfully(mock_process):
     process.wait.assert_called_once_with(timeout=5)
 
     assert result == {
+        "component": "process",
         "pid": 1234,
         "status": "recovered",
     }
@@ -33,6 +36,7 @@ def test_recover_process_not_found(mock_process):
     mock_process.assert_called_once_with(1234)
 
     assert result == {
+        "component": "process",
         "pid": 1234,
         "status": "not_found",
     }
@@ -50,6 +54,7 @@ def test_recover_process_access_denied(mock_process):
     mock_process.assert_called_once_with(1234)
 
     assert result == {
+        "component": "process",
         "pid": 1234,
         "status": "access_denied",
     }
@@ -58,6 +63,7 @@ def test_recover_process_access_denied(mock_process):
 @patch("agent.recovery.process.psutil.Process")
 def test_recover_process_timeout(mock_process):
     process = mock_process.return_value
+    process.name.return_value = "worker.exe"
     process.wait.side_effect = psutil.TimeoutExpired(1234, 5)
 
     recovery = ProcessRecovery()
@@ -68,6 +74,7 @@ def test_recover_process_timeout(mock_process):
     process.wait.assert_called_once_with(timeout=5)
 
     assert result == {
+        "component": "process",
         "pid": 1234,
         "status": "recovery_failed",
     }
@@ -164,3 +171,30 @@ def test_select_recovery_candidate_skips_missing_values():
     candidate = recovery.select_recovery_candidate(processes)
 
     assert candidate["pid"] == 300
+
+
+@patch("agent.recovery.process.psutil.Process")
+def test_recover_process_refuses_protected_process(mock_process):
+    process = mock_process.return_value
+    process.name.return_value = "lsass.exe"
+
+    result = ProcessRecovery().recover(1234)
+
+    process.terminate.assert_not_called()
+    assert result["status"] == "protected_process"
+
+
+@patch("agent.recovery.process.psutil.Process")
+def test_recover_process_refuses_current_process(mock_process):
+    result = ProcessRecovery().recover(os.getpid())
+
+    mock_process.assert_not_called()
+    assert result["status"] == "current_process"
+
+
+@patch("agent.recovery.process.psutil.Process")
+def test_recover_process_rejects_invalid_pid(mock_process):
+    result = ProcessRecovery().recover(0)
+
+    mock_process.assert_not_called()
+    assert result["status"] == "invalid_pid"

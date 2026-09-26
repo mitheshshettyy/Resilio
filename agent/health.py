@@ -10,7 +10,7 @@ def get_cpu_status(cpu_usage):
 
 
 def get_memory_status(memory_usage):
-    if memory_usage > MEMORY_CRITICAL_THRESHOLD:
+    if memory_usage >= MEMORY_CRITICAL_THRESHOLD:
         return "CRITICAL"
 
     elif memory_usage >= MEMORY_WARNING_THRESHOLD:

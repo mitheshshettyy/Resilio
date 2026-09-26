@@ -1,4 +1,21 @@
+import os
+
 import psutil
+
+
+PROTECTED_PROCESS_NAMES = {
+    "system",
+    "system idle process",
+    "registry",
+    "smss.exe",
+    "csrss.exe",
+    "wininit.exe",
+    "services.exe",
+    "lsass.exe",
+    "winlogon.exe",
+    "fontdrvhost.exe",
+    "dwm.exe",
+}
 
 
 class ProcessRecovery:
@@ -47,28 +64,19 @@ class ProcessRecovery:
     def select_recovery_candidate(self, processes, protected_names=None):
         """Select the highest-memory process that is safe to recover."""
         if protected_names is None:
-            protected_names = {
-                "System",
-                "System Idle Process",
-                "Registry",
-                "smss.exe",
-                "csrss.exe",
-                "wininit.exe",
-                "services.exe",
-                "lsass.exe",
-            }
+            protected_names = PROTECTED_PROCESS_NAMES
 
         protected_names = {
             name.lower() for name in protected_names
         }
 
-        current_pid = psutil.Process().pid
+        current_pid = os.getpid()
 
         for process in processes:
             pid = process.get("pid")
             name = process.get("name")
 
-            if pid is None or name is None:
+            if not isinstance(pid, int) or not isinstance(name, str):
                 continue
 
             if pid == current_pid:
@@ -83,30 +91,36 @@ class ProcessRecovery:
 
     def recover(self, pid):
         """Terminate the process and verify that it stopped."""
+        if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+            return self._result(pid, "invalid_pid")
+
+        if pid == os.getpid():
+            return self._result(pid, "current_process")
+
         try:
             process = psutil.Process(pid)
+
+            if process.name().lower() in PROTECTED_PROCESS_NAMES:
+                return self._result(pid, "protected_process")
+
             process.terminate()
             process.wait(timeout=5)
 
-            return {
-                "pid": pid,
-                "status": "recovered",
-            }
+            return self._result(pid, "recovered")
 
         except psutil.NoSuchProcess:
-            return {
-                "pid": pid,
-                "status": "not_found",
-            }
+            return self._result(pid, "not_found")
 
         except psutil.AccessDenied:
-            return {
-                "pid": pid,
-                "status": "access_denied",
-            }
+            return self._result(pid, "access_denied")
 
         except psutil.TimeoutExpired:
-            return {
-                "pid": pid,
-                "status": "recovery_failed",
-            }
+            return self._result(pid, "recovery_failed")
+
+    @staticmethod
+    def _result(pid, status):
+        return {
+            "component": "process",
+            "pid": pid,
+            "status": status,
+        }

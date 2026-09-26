@@ -12,6 +12,11 @@ class RecoveryManager:
         """Attempt recovery for the given component."""
 
         if component == "process":
+            if "pid" not in kwargs:
+                return {
+                    "component": "process",
+                    "status": "invalid_arguments",
+                }
             recovery = ProcessRecovery()
             return recovery.recover(kwargs["pid"])
 

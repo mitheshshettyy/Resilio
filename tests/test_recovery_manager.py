@@ -36,6 +36,12 @@ def test_manager_process_recovery(monkeypatch):
     assert result["pid"] == 1234
 
 
+def test_manager_process_recovery_requires_pid():
+    result = RecoveryManager().recover("process")
+
+    assert result == {"component": "process", "status": "invalid_arguments"}
+
+
 def test_manager_unknown_component():
 
     manager = RecoveryManager()
