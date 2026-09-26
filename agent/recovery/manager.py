@@ -1,6 +1,7 @@
 from agent.recovery.process import ProcessRecovery
 from agent.recovery.memory import MemoryRecovery
 from agent.recovery.cpu import CpuRecovery
+from agent.recovery.disk import DiskRecovery
 
 
 class RecoveryManager:
@@ -19,6 +20,10 @@ class RecoveryManager:
 
         if component == "cpu":
             recovery = CpuRecovery()
+            return recovery.recover()
+
+        if component == "disk":
+            recovery = DiskRecovery()
             return recovery.recover()
 
         return {

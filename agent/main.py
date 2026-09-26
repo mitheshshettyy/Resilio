@@ -39,6 +39,10 @@ def monitor_once(recovery_manager):
         result = recovery_manager.recover("memory")
         print(f"Memory Recovery: {result}")
 
+    if disk_status == "CRITICAL":
+        result = recovery_manager.recover("disk")
+        print(f"Disk Recovery: {result}")
+
     if process_status == "CRITICAL" and process_info:
         result = recovery_manager.recover(
             "process",
