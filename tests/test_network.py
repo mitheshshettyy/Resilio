@@ -63,3 +63,8 @@ def test_get_network_info_when_counters_missing():
             result = get_network_info("Wi-Fi")
 
             assert result is None
+
+
+def test_get_network_info_when_interface_missing():
+    with patch("agent.collectors.network.psutil.net_if_stats", return_value={}):
+        assert get_network_info("Wi-Fi") is None

@@ -83,20 +83,38 @@ def test_recover_process_timeout(mock_process):
 def test_get_memory_processes():
     recovery = ProcessRecovery()
 
-    processes = recovery.get_memory_processes()
+    heavy = type(
+        "Process",
+        (),
+        {
+            "info": {
+                "pid": 200,
+                "name": "heavy.exe",
+                "memory_info": type("Memory", (), {"rss": 20 * 1024 * 1024})(),
+            }
+        },
+    )()
+    light = type(
+        "Process",
+        (),
+        {
+            "info": {
+                "pid": 100,
+                "name": "light.exe",
+                "memory_info": type("Memory", (), {"rss": 10 * 1024 * 1024})(),
+            }
+        },
+    )()
+
+    with patch(
+        "agent.recovery.process.psutil.process_iter",
+        return_value=[light, heavy],
+    ):
+        processes = recovery.get_memory_processes()
 
     assert isinstance(processes, list)
 
-    if processes:
-        assert "pid" in processes[0]
-        assert "name" in processes[0]
-        assert "memory_mb" in processes[0]
-
-        for i in range(len(processes) - 1):
-            assert (
-                processes[i]["memory_mb"]
-                >= processes[i + 1]["memory_mb"]
-            )
+    assert [process["pid"] for process in processes] == [200, 100]
 
 
 def test_select_recovery_candidate():
