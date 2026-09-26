@@ -93,6 +93,7 @@ It monitors system resources such as CPU, memory, disk, network, and processes, 
                                           │ Not Required         │
                                           │ Unavailable          │
                                           └──────────────────────┘
+```
 
 ## Getting Started
 
