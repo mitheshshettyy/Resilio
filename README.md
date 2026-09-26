@@ -24,39 +24,75 @@ It monitors system resources such as CPU, memory, disk, network, and processes, 
 ## Architecture
 
 ```text
-                 ┌─────────────────────┐
-                 │   System Monitoring │
-                 │                     │
-                 │ CPU • Memory • Disk │
-                 │ Network • Process   │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │   Health Detection  │
-                 │                     │
-                 │ Evaluate system     │
-                 │ health & conditions │
-                 └──────────┬──────────┘
-                            │
-                 ┌──────────┴──────────┐
-                 │                     │
-              Healthy              Critical
-                 │                     │
-                 ▼                     ▼
-          ┌─────────────┐    ┌──────────────────┐
-          │  No Action  │    │ Recovery Manager │
-          └─────────────┘    └────────┬─────────┘
-                                      │
-                           ┌──────────┴──────────┐
-                           │                     │
-                           ▼                     ▼
-                    ┌──────────────┐     ┌───────────────┐
-                    │ CPU • Memory │     │ Disk • Network│
-                    │   • Process  │     │               │
-                    │   Recovery   │     │   Recovery    │
-                    └──────────────┘     └───────────────┘
-```
+                           ┌─────────────────────────────┐
+                           │          Resilio            │
+                           │     Monitoring Agent        │
+                           └──────────────┬──────────────┘
+                                          │
+                                          ▼
+                       ┌──────────────────────────────────────┐
+                       │          System Collectors           │
+                       │                                      │
+                       │  CPU      Memory      Disk           │
+                       │  Network  Process                    │
+                       └──────────────────┬───────────────────┘
+                                          │
+                                          │ Raw system metrics
+                                          ▼
+                       ┌──────────────────────────────────────┐
+                       │           Health Detection           │
+                       │                                      │
+                       │  CPU Health      Memory Health       │
+                       │  Disk Health     Network Health      │
+                       │  Process Health                      | 
+                       │                                      │
+                       │  HEALTHY / WARNING / CRITICAL        │
+                       └──────────────────┬───────────────────┘
+                                          │
+                                 ┌────────┴────────┐
+                                 │                 │
+                           HEALTHY/WARNING      CRITICAL
+                                 │                 │
+                                 ▼                 ▼
+                           ┌────────────┐   ┌──────────────────┐
+                           │  No        │   │ Recovery Manager │
+                           │  Recovery  │   │                  │
+                           │  Required  │   │ Routes recovery  │
+                           └────────────┘   │ by component     │
+                                            └────────┬─────────┘
+                                                     │
+                        ┌────────────────────────────┼──────────────────────────┐
+                        │                            │                          │
+                        ▼                            ▼                          ▼
+               ┌─────────────────┐        ┌─────────────────┐        ┌─────────────────┐
+               │ CPU Recovery    │        │ Memory Recovery │        │ Process Recovery│
+               │                 │        │                 │        │                 │
+               │ Safe candidate  │        │ Garbage         │        │ Safe candidate  │
+               │ selection       │        │ collection      │        │ selection       │
+               │ + verification  │        │ + verification  │        │ + verification  │
+               └─────────────────┘        └─────────────────┘        └─────────────────┘
+                        │                            │                          │
+                        └────────────────────────────┼──────────────────────────┘
+                                                     │
+                                                     ▼
+                                          ┌──────────────────────┐
+                                          │ Disk / Network       │
+                                          │ Recovery             │
+                                          │                      │
+                                          │ Safe recovery        │
+                                          │ abstractions /       │
+                                          │ coordination         │
+                                          └──────────┬───────────┘
+                                                     │
+                                                     ▼
+                                          ┌──────────────────────┐
+                                          │ Recovery Result      │
+                                          │                      │
+                                          │ Recovered            │
+                                          │ Failed               │
+                                          │ Not Required         │
+                                          │ Unavailable          │
+                                          └──────────────────────┘
 
 ## Getting Started
 
