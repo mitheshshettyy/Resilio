@@ -29,6 +29,6 @@ def test_memory_status_warning():
 
 
 def test_memory_status_critical():
-    memory_usage = MEMORY_CRITICAL_THRESHOLD + 1
+    memory_usage = MEMORY_CRITICAL_THRESHOLD
 
     assert get_memory_status(memory_usage) == "CRITICAL"

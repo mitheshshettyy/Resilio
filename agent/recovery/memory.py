@@ -1,10 +1,11 @@
 from agent.collectors.memory import get_memory_usage
+from agent.config import MEMORY_CRITICAL_THRESHOLD
 
 
 class MemoryRecovery:
     """Handles recovery operations for high memory usage."""
 
-    def __init__(self, threshold=85):
+    def __init__(self, threshold=MEMORY_CRITICAL_THRESHOLD):
         self.threshold = threshold
 
     def recover(self):

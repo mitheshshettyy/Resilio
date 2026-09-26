@@ -13,46 +13,86 @@ It monitors system resources such as CPU, memory, disk, network, and processes, 
 * Process monitoring
 * System health detection
 * Configurable monitoring parameters
+* Safe CPU recovery candidate selection
 * Automated memory recovery
-* Process recovery
+* Safe process recovery
+* Conservative disk recovery coordination
+* Network recovery coordination
 * Safe process selection for recovery
 * Automated testing
 
 ## Architecture
 
 ```text
-                 ┌─────────────────────┐
-                 │   System Monitoring │
-                 │                     │
-                 │ CPU • Memory • Disk │
-                 │ Network • Process   │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │   Health Detection  │
-                 │                     │
-                 │ Evaluate system     │
-                 │ health & conditions │
-                 └──────────┬──────────┘
-                            │
-                 ┌──────────┴──────────┐
-                 │                     │
-              Healthy              Critical
-                 │                     │
-                 ▼                     ▼
-          ┌─────────────┐    ┌──────────────────┐
-          │  No Action  │    │ Recovery Manager │
-          └─────────────┘    └────────┬─────────┘
-                                      │
-                           ┌──────────┴──────────┐
-                           │                     │
-                           ▼                     ▼
-                    ┌──────────────┐     ┌───────────────┐
-                    │    Memory    │     │    Process    │
-                    │   Recovery   │     │   Recovery    │
-                    └──────────────┘     └───────────────┘
-```
+                           ┌─────────────────────────────┐
+                           │          Resilio            │
+                           │     Monitoring Agent        │
+                           └──────────────┬──────────────┘
+                                          │
+                                          ▼
+                       ┌──────────────────────────────────────┐
+                       │          System Collectors           │
+                       │                                      │
+                       │  CPU      Memory      Disk           │
+                       │  Network  Process                    │
+                       └──────────────────┬───────────────────┘
+                                          │
+                                          │ Raw system metrics
+                                          ▼
+                       ┌──────────────────────────────────────┐
+                       │           Health Detection           │
+                       │                                      │
+                       │  CPU Health      Memory Health       │
+                       │  Disk Health     Network Health      │
+                       │  Process Health                      | 
+                       │                                      │
+                       │  HEALTHY / WARNING / CRITICAL        │
+                       └──────────────────┬───────────────────┘
+                                          │
+                                 ┌────────┴────────┐
+                                 │                 │
+                           HEALTHY/WARNING      CRITICAL
+                                 │                 │
+                                 ▼                 ▼
+                           ┌────────────┐   ┌──────────────────┐
+                           │  No        │   │ Recovery Manager │
+                           │  Recovery  │   │                  │
+                           │  Required  │   │ Routes recovery  │
+                           └────────────┘   │ by component     │
+                                            └────────┬─────────┘
+                                                     │
+                        ┌────────────────────────────┼──────────────────────────┐
+                        │                            │                          │
+                        ▼                            ▼                          ▼
+               ┌─────────────────┐        ┌─────────────────┐        ┌─────────────────┐
+               │ CPU Recovery    │        │ Memory Recovery │        │ Process Recovery│
+               │                 │        │                 │        │                 │
+               │ Safe candidate  │        │ Garbage         │        │ Safe candidate  │
+               │ selection       │        │ collection      │        │ selection       │
+               │ + verification  │        │ + verification  │        │ + verification  │
+               └─────────────────┘        └─────────────────┘        └─────────────────┘
+                        │                            │                          │
+                        └────────────────────────────┼──────────────────────────┘
+                                                     │
+                                                     ▼
+                                          ┌──────────────────────┐
+                                          │ Disk / Network       │
+                                          │ Recovery             │
+                                          │                      │
+                                          │ Safe recovery        │
+                                          │ abstractions /       │
+                                          │ coordination         │
+                                          └──────────┬───────────┘
+                                                     │
+                                                     ▼
+                                          ┌──────────────────────┐
+                                          │ Recovery Result      │
+                                          │                      │
+                                          │ Recovered            │
+                                          │ Failed               │
+                                          │ Not Required         │
+                                          │ Unavailable          │
+                                          └──────────────────────┘
 
 ## Getting Started
 
@@ -107,6 +147,19 @@ python -m agent.main
 ```
 
 Resilio will begin monitoring the system and perform recovery actions when supported health conditions require them.
+
+## Recovery safety
+
+CPU and process recovery terminate only a selected process after excluding
+Resilio itself and protected system process names. CPU recovery additionally
+requires a process to meet the configured process CPU critical threshold and
+verifies that total CPU usage falls after termination.
+
+Disk and network recovery are coordinated through safe recovery abstractions.
+Resilio does not delete files or reset network interfaces by default because it
+does not own a cleanup location or a portable, permission-safe interface reset
+operation. They report `recovery_unavailable` until a deployment provides an
+explicit, managed cleanup or platform-specific interface action.
 
 ### Run Tests
 

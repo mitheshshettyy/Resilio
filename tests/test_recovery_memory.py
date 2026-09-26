@@ -1,4 +1,5 @@
 from agent.recovery.memory import MemoryRecovery
+from agent.config import MEMORY_CRITICAL_THRESHOLD
 
 
 def test_memory_recovery_not_required(monkeypatch):
@@ -54,3 +55,14 @@ def test_memory_recovery_failed(monkeypatch):
     assert result["status"] == "recovery_failed"
     assert result["before"] == 95
     assert result["after"] == 96
+
+
+def test_memory_recovery_uses_configured_critical_threshold(monkeypatch):
+    monkeypatch.setattr(
+        "agent.recovery.memory.get_memory_usage",
+        lambda: MEMORY_CRITICAL_THRESHOLD - 1,
+    )
+
+    result = MemoryRecovery().recover()
+
+    assert result["status"] == "not_required"

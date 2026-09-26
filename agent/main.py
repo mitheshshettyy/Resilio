@@ -31,9 +31,17 @@ def monitor_once(recovery_manager):
     process_status = get_process_status(process_info)
     network_status = get_network_status(network_info)
 
+    if cpu_status == "CRITICAL":
+        result = recovery_manager.recover("cpu")
+        print(f"CPU Recovery: {result}")
+
     if memory_status == "CRITICAL":
         result = recovery_manager.recover("memory")
         print(f"Memory Recovery: {result}")
+
+    if disk_status == "CRITICAL":
+        result = recovery_manager.recover("disk")
+        print(f"Disk Recovery: {result}")
 
     if process_status == "CRITICAL" and process_info:
         result = recovery_manager.recover(
@@ -41,6 +49,13 @@ def monitor_once(recovery_manager):
             pid=process_info["pid"],
         )
         print(f"Process Recovery: {result}")
+
+    if network_status == "CRITICAL" and network_info:
+        result = recovery_manager.recover(
+            "network",
+            interface=NETWORK_INTERFACE,
+        )
+        print(f"Network Recovery: {result}")
 
     if network_info:
         print(
