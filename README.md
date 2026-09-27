@@ -1,25 +1,17 @@
 # Resilio
 
-Resilio is an infrastructure monitoring and auto-recovery system that continuously monitors a system's health, detects resource and process-related issues, and performs appropriate recovery actions when required.
-
-It monitors system resources such as CPU, memory, disk, network, and processes, evaluates their health, and provides automated recovery capabilities for supported issues.
+Resilio is an infrastructure monitoring and auto-recovery agent that continuously monitors system health, detects resource exhaustion and process-related failures, and performs verified, non-destructive recovery actions to maintain system stability.
 
 ## Features
 
-* CPU monitoring
-* Memory monitoring
-* Disk monitoring
-* Network monitoring
-* Process monitoring
-* System health detection
-* Configurable monitoring parameters
-* Safe CPU recovery candidate selection
-* Automated memory recovery
-* Safe process recovery
-* Conservative disk recovery coordination
-* Network recovery coordination
-* Safe process selection for recovery
-* Automated testing
+- **System Telemetry**: Continuous collection of CPU, memory, root disk, network interface, and process metrics via `psutil`.
+- **Tri-State Health Evaluation**: Classifies component states into `HEALTHY`, `WARNING`, or `CRITICAL` based on configurable thresholds.
+- **Automated Recovery Dispatch**: Centralized `RecoveryManager` routes recovery workflows when critical states are detected.
+- **Safe CPU Relief**: Identifies and terminates verified high-CPU candidate processes while excluding protected OS processes and the agent itself.
+- **Memory Reclamation**: Executes Python runtime garbage collection with pre- and post-execution metric verification.
+- **Defensive Process Recovery**: Safely terminates unresponsive or out-of-bounds target processes with PID validation and termination timeouts.
+- **Guarded Disk & Network Recovery**: Non-destructive abstractions that avoid unauthorized cleanup or interface disruption by default, supporting pluggable cleanup and restart hooks.
+- **Automated Test Suite**: 74 unit and integration tests covering collectors, health evaluation, and recovery workflows.
 
 ## Architecture
 
@@ -44,7 +36,7 @@ It monitors system resources such as CPU, memory, disk, network, and processes, 
                        │                                      │
                        │  CPU Health      Memory Health       │
                        │  Disk Health     Network Health      │
-                       │  Process Health                      | 
+                       │  Process Health                      │
                        │                                      │
                        │  HEALTHY / WARNING / CRITICAL        │
                        └──────────────────┬───────────────────┘
@@ -95,76 +87,108 @@ It monitors system resources such as CPU, memory, disk, network, and processes, 
                                           └──────────────────────┘
 ```
 
+## Tech Stack
+
+- **Language**: Python 3.10+
+- **Telemetry & Process Control**: `psutil`
+- **Configuration**: `python-dotenv`
+- **Testing**: `pytest`
+
+## Configuration
+
+Runtime parameters are configured via environment variables in a `.env` file (see `.env.example`):
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `MONITOR_INTERVAL` | `5` | Monitoring interval in seconds |
+| `CPU_WARNING_THRESHOLD` | `80` | CPU warning threshold (%) |
+| `CPU_CRITICAL_THRESHOLD` | `90` | CPU critical threshold (%) |
+| `MEMORY_WARNING_THRESHOLD` | `70` | Memory warning threshold (%) |
+| `MEMORY_CRITICAL_THRESHOLD` | `85` | Memory critical threshold (%) |
+| `DISK_WARNING_THRESHOLD` | `80` | Disk warning threshold (%) |
+| `DISK_CRITICAL_THRESHOLD` | `90` | Disk critical threshold (%) |
+| `PROCESS_NAME` | `python.exe` | Target process executable name |
+| `PROCESS_CPU_WARNING_THRESHOLD` | `80` | Process CPU warning threshold (%) |
+| `PROCESS_CPU_CRITICAL_THRESHOLD` | `90` | Process CPU critical threshold (%) |
+| `PROCESS_MEMORY_WARNING_THRESHOLD` | `70` | Process memory warning threshold (%) |
+| `PROCESS_MEMORY_CRITICAL_THRESHOLD` | `85` | Process memory critical threshold (%) |
+| `NETWORK_INTERFACE` | `Wi-Fi` | Target network interface identifier |
+
 ## Getting Started
 
 ### Prerequisites
 
-* Python 3.x
-* Git
+- Python 3.10 or higher
+- Git
 
 ### Installation
 
 Clone the repository:
 
 ```bash
-git clone <repository-url>
-cd resilio
+git clone https://github.com/mitheshshettyy/Resilio.git
+cd Resilio
 ```
 
-Create a virtual environment:
+Create and activate a virtual environment:
 
-```bash
-python -m venv .venv
-```
+- **Windows**:
+  ```powershell
+  python -m venv .venv
+  .venv\Scripts\activate
+  ```
 
-Activate the virtual environment on Windows:
+- **Linux / macOS**:
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate
+  ```
 
-```bash
-.venv\Scripts\activate
-```
-
-Install the required dependencies:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
-### Configuration
+### Configuration Setup
 
-Create a `.env` file using the provided example configuration:
+Create a `.env` file from the example template:
 
-```bash
-copy .env.example .env
-```
+- **Windows**:
+  ```powershell
+  copy .env.example .env
+  ```
 
-Update the configuration values as required.
+- **Linux / macOS**:
+  ```bash
+  cp .env.example .env
+  ```
 
-### Run Resilio
+Update the configuration values in `.env` as needed.
 
-Start the Resilio monitoring agent:
+### Running Resilio
+
+Start the monitoring agent:
 
 ```bash
 python -m agent.main
 ```
 
-Resilio will begin monitoring the system and perform recovery actions when supported health conditions require them.
+To stop the agent, press `Ctrl+C`.
 
-## Recovery safety
+## Recovery Safety
 
-CPU and process recovery terminate only a selected process after excluding
-Resilio itself and protected system process names. CPU recovery additionally
-requires a process to meet the configured process CPU critical threshold and
-verifies that total CPU usage falls after termination.
+Resilio incorporates defensive safeguards across all recovery mechanisms:
 
-Disk and network recovery are coordinated through safe recovery abstractions.
-Resilio does not delete files or reset network interfaces by default because it
-does not own a cleanup location or a portable, permission-safe interface reset
-operation. They report `recovery_unavailable` until a deployment provides an
-explicit, managed cleanup or platform-specific interface action.
+- **Self-Protection**: Compares candidate process IDs against `os.getpid()` to prevent terminating the agent itself.
+- **Protected System Processes**: Never terminates critical operating system processes (including `system`, `services.exe`, `lsass.exe`, `csrss.exe`, `wininit.exe`, and `dwm.exe`).
+- **Post-Action Verification**: Actions report `recovered` only if post-recovery measurements confirm a reduction in resource usage or verified process termination.
+- **Conservative Disk & Network Strategy**: Does not delete files or reset interfaces by default. These modules return `recovery_unavailable` unless an explicit, managed cleanup function or platform-specific restart action is provided.
 
-### Run Tests
+## Testing
 
-To run the test suite:
+Run the test suite using `pytest`:
 
 ```bash
 python -m pytest
