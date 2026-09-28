@@ -2,6 +2,7 @@ import psutil
 
 
 def get_network_info(interface_name):
+    """Return interface state and counters, or ``None`` when unavailable."""
     stats = psutil.net_if_stats().get(interface_name)
 
     if stats is None:

@@ -2,6 +2,7 @@ import psutil
 
 
 def get_process_info(process_name):
+    """Return metrics for the first accessible process with the given name."""
     for process in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
         try:
             if process.info["name"] == process_name:
