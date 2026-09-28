@@ -17,7 +17,7 @@ from .recovery.manager import RecoveryManager
 
 
 def monitor_once(recovery_manager):
-    """Run one monitoring and recovery cycle."""
+    """Collect metrics, classify their health, and recover critical components."""
 
     cpu_usage = get_cpu_usage()
     memory_usage = get_memory_usage()
@@ -83,6 +83,7 @@ def monitor_once(recovery_manager):
 
 
 def main():
+    """Run monitoring cycles until the agent is interrupted."""
     print("Resilio monitoring agent started.")
     print(f"Monitoring interval: {MONITOR_INTERVAL} seconds\n")
 
