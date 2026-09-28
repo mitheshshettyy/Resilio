@@ -9,7 +9,7 @@ class RecoveryManager:
     """Manages recovery actions for system components."""
 
     def recover(self, component, **kwargs):
-        """Attempt recovery for the given component."""
+        """Dispatch a component recovery request after validating its inputs."""
 
         if component == "process":
             if "pid" not in kwargs:

@@ -13,7 +13,6 @@ class MemoryRecovery:
 
         before = get_memory_usage()
 
-        # Memory usage is below the recovery threshold.
         if before < self.threshold:
             return {
                 "component": "memory",
@@ -22,10 +21,9 @@ class MemoryRecovery:
                 "after": before,
             }
 
-        # Perform safe memory cleanup.
         self.reclaim()
 
-        # Measure memory again after recovery.
+        # Recovery success requires an observed reduction, not just a successful call.
         after = get_memory_usage()
 
         if after < before:
@@ -41,9 +39,8 @@ class MemoryRecovery:
         }
 
     def reclaim(self):
-        """Perform safe memory cleanup."""
+        """Release unreachable Python objects without touching other processes."""
 
-        # Python garbage collection releases unused Python objects.
         import gc
 
         gc.collect()

@@ -62,7 +62,7 @@ class ProcessRecovery:
         )
 
     def select_recovery_candidate(self, processes, protected_names=None):
-        """Select the highest-memory process that is safe to recover."""
+        """Select the first safe process from a caller-ordered candidate list."""
         if protected_names is None:
             protected_names = PROTECTED_PROCESS_NAMES
 
@@ -90,7 +90,7 @@ class ProcessRecovery:
         return None
 
     def recover(self, pid):
-        """Terminate the process and verify that it stopped."""
+        """Terminate a validated non-system process and verify that it stopped."""
         if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
             return self._result(pid, "invalid_pid")
 
