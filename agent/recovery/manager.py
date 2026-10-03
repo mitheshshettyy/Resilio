@@ -1,21 +1,28 @@
 import time
+import logging
 
+from agent.config import MAX_RECOVERY_ATTEMPTS, RECOVERY_COOLDOWN_SECONDS
 from agent.recovery.process import ProcessRecovery
 from agent.recovery.memory import MemoryRecovery
 from agent.recovery.cpu import CpuRecovery
 from agent.recovery.disk import DiskRecovery
 from agent.recovery.network import NetworkRecovery
+from agent.recovery.verification import RecoveryVerifier
+
+
+logger = logging.getLogger(__name__)
 
 
 class RecoveryManager:
     """Manages recovery actions for system components."""
 
-    MAX_RECOVERY_ATTEMPTS = 2
-    RECOVERY_COOLDOWN = 60
+    MAX_RECOVERY_ATTEMPTS = MAX_RECOVERY_ATTEMPTS
+    RECOVERY_COOLDOWN = RECOVERY_COOLDOWN_SECONDS
 
-    def __init__(self, clock=None):
+    def __init__(self, clock=None, verifier=None):
         self._clock = clock or time.monotonic
         self._state = {}
+        self._verifier = verifier or RecoveryVerifier()
 
     def _get_state(self, component):
         if component not in self._state:
@@ -43,6 +50,10 @@ class RecoveryManager:
                 current_time + self.RECOVERY_COOLDOWN
             )
             state["last_outcome"] = "COOLDOWN"
+            logger.warning(
+                "Recovery retry budget exhausted; cooldown entered for component=%s",
+                component,
+            )
             return False
 
         return True
@@ -59,6 +70,104 @@ class RecoveryManager:
         state["attempt_count"] = 0
         state["cooldown_until"] = None
         state["last_outcome"] = "RECOVERY_VERIFIED"
+
+    def recover_and_verify(self, component, context=None, **kwargs):
+        """Apply the existing policy around an action and fresh verification."""
+        context = context or {}
+        logger.info("Recovery requested for component=%s", component)
+
+        if not self._can_recover(component):
+            logger.info("Recovery skipped due to cooldown for component=%s", component)
+            return self._result(
+                component,
+                action_status="not_attempted",
+                verification_status="not_attempted",
+                reason="cooldown_active",
+            )
+
+        logger.info("Recovery attempted for component=%s", component)
+        action_result = self.recover(component, **kwargs)
+        action_status = action_result["status"]
+
+        if action_status not in {"recovered", "not_required"}:
+            outcome = (
+                "RECOVERY_UNAVAILABLE"
+                if action_status == "recovery_unavailable"
+                else "RECOVERY_ACTION_FAILED"
+            )
+            self._record_failure(component, outcome)
+            logger.warning(
+                "Recovery action failed for component=%s status=%s",
+                component,
+                action_status,
+            )
+            verification_status = (
+                "unverifiable"
+                if action_status == "recovery_unavailable"
+                else "not_attempted"
+            )
+            return self._result(
+                component,
+                action_status=action_status,
+                verification_status=verification_status,
+                reason=action_result.get("reason", action_status),
+            )
+
+        logger.info("Recovery verification started for component=%s", component)
+        verification = self._verifier.verify(component, context)
+        verification_status = verification["verification_status"]
+
+        if verification_status == "verified":
+            self._record_success(component)
+            logger.info("Recovery verification succeeded for component=%s", component)
+        else:
+            outcome = (
+                "RECOVERY_UNVERIFIABLE"
+                if verification_status == "unverifiable"
+                else "RECOVERY_VERIFICATION_FAILED"
+            )
+            self._record_failure(component, outcome)
+            logger.warning(
+                "Recovery verification failed for component=%s status=%s",
+                component,
+                verification_status,
+            )
+
+        return self._result(
+            component,
+            action_status=action_status,
+            verification_status=verification_status,
+            health_status=verification.get("health_status"),
+            measurement=verification.get("measurement"),
+            reason=verification.get("reason"),
+        )
+
+    def _result(
+        self,
+        component,
+        action_status,
+        verification_status,
+        health_status=None,
+        measurement=None,
+        reason=None,
+    ):
+        state = self._get_state(component)
+        result = {
+            "component": component,
+            "action_status": action_status,
+            "verification_status": verification_status,
+            "health_status": health_status,
+            "attempt_number": state["attempt_count"],
+            "retry_remaining": max(
+                self.MAX_RECOVERY_ATTEMPTS - state["attempt_count"], 0
+            ),
+            "cooldown_until": state["cooldown_until"],
+        }
+        if measurement is not None:
+            result["measurement"] = measurement
+        if reason is not None:
+            result["reason"] = reason
+        return result
 
     def recover(self, component, **kwargs):
         """Dispatch a component recovery request after validating its inputs."""
