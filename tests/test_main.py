@@ -12,7 +12,7 @@ def test_monitor_once_memory_recovery(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def recover(self, component, **kwargs):
+        def recover_and_verify(self, component, context=None, **kwargs):
             self.calls.append((component, kwargs))
             return {
                 "component": component,
@@ -39,7 +39,7 @@ def test_monitor_once_cpu_recovery(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def recover(self, component, **kwargs):
+        def recover_and_verify(self, component, context=None, **kwargs):
             self.calls.append((component, kwargs))
             return {"component": component, "status": "recovered"}
 
@@ -61,7 +61,7 @@ def test_monitor_once_disk_recovery(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def recover(self, component, **kwargs):
+        def recover_and_verify(self, component, context=None, **kwargs):
             self.calls.append((component, kwargs))
             return {"component": component, "status": "recovery_unavailable"}
 
@@ -91,7 +91,7 @@ def test_monitor_once_network_recovery_when_interface_is_down(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def recover(self, component, **kwargs):
+        def recover_and_verify(self, component, context=None, **kwargs):
             self.calls.append((component, kwargs))
             return {"component": component, "status": "recovery_unavailable"}
 
@@ -121,7 +121,7 @@ def test_monitor_once_process_recovery(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def recover(self, component, **kwargs):
+        def recover_and_verify(self, component, context=None, **kwargs):
             self.calls.append((component, kwargs))
             return {
                 "component": component,
@@ -164,7 +164,7 @@ def test_monitor_once_healthy_no_recovery(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def recover(self, component, **kwargs):
+        def recover_and_verify(self, component, context=None, **kwargs):
             self.calls.append((component, kwargs))
 
     recovery_manager = FakeRecoveryManager()
@@ -193,7 +193,7 @@ def test_monitor_once_missing_process_no_recovery(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def recover(self, component, **kwargs):
+        def recover_and_verify(self, component, context=None, **kwargs):
             self.calls.append((component, kwargs))
 
     recovery_manager = FakeRecoveryManager()
@@ -214,7 +214,7 @@ def test_monitor_once_missing_network_does_not_attempt_recovery(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def recover(self, component, **kwargs):
+        def recover_and_verify(self, component, context=None, **kwargs):
             self.calls.append((component, kwargs))
 
     recovery_manager = FakeRecoveryManager()
