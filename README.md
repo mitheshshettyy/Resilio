@@ -184,6 +184,10 @@ To stop the agent, press `Ctrl+C`.
 
 Resilio incorporates defensive safeguards across all recovery mechanisms:
 
+```text
+Monitor → Detect → Recover → Verify → Success / Retry / Cooldown
+```
+
 - **Self-Protection**: Compares candidate process IDs against `os.getpid()` to prevent terminating the agent itself.
 - **Protected System Processes**: Never terminates critical operating system processes (including `system`, `services.exe`, `lsass.exe`, `csrss.exe`, `wininit.exe`, and `dwm.exe`).
 - **Post-Action Verification**: Actions report `recovered` only if post-recovery measurements confirm a reduction in resource usage or verified process termination.
