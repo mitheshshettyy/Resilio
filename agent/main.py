@@ -1,3 +1,4 @@
+import logging
 import time
 
 from .collectors.cpu import get_cpu_usage
@@ -5,7 +6,7 @@ from .collectors.memory import get_memory_usage
 from .collectors.disk import get_disk_usage
 from .collectors.process import get_process_info
 from .collectors.network import get_network_info
-from .config import MONITOR_INTERVAL, PROCESS_NAME, NETWORK_INTERFACE
+from .config import LOG_LEVEL, MONITOR_INTERVAL, PROCESS_NAME, NETWORK_INTERFACE
 from .health import (
     get_cpu_status,
     get_memory_status,
@@ -14,6 +15,9 @@ from .health import (
     get_network_status,
 )
 from .recovery.manager import RecoveryManager
+
+
+logger = logging.getLogger(__name__)
 
 
 def monitor_once(recovery_manager):
@@ -32,27 +36,29 @@ def monitor_once(recovery_manager):
     network_status = get_network_status(network_info)
 
     if cpu_status == "CRITICAL":
-        result = recovery_manager.recover("cpu")
+        result = recovery_manager.recover_and_verify("cpu")
         print(f"CPU Recovery: {result}")
 
     if memory_status == "CRITICAL":
-        result = recovery_manager.recover("memory")
+        result = recovery_manager.recover_and_verify("memory")
         print(f"Memory Recovery: {result}")
 
     if disk_status == "CRITICAL":
-        result = recovery_manager.recover("disk")
+        result = recovery_manager.recover_and_verify("disk")
         print(f"Disk Recovery: {result}")
 
     if process_status == "CRITICAL" and process_info:
-        result = recovery_manager.recover(
+        result = recovery_manager.recover_and_verify(
             "process",
+            context={"process_name": PROCESS_NAME},
             pid=process_info["pid"],
         )
         print(f"Process Recovery: {result}")
 
     if network_status == "CRITICAL" and network_info:
-        result = recovery_manager.recover(
+        result = recovery_manager.recover_and_verify(
             "network",
+            context={"interface": NETWORK_INTERFACE},
             interface=NETWORK_INTERFACE,
         )
         print(f"Network Recovery: {result}")
@@ -84,6 +90,10 @@ def monitor_once(recovery_manager):
 
 def main():
     """Run monitoring cycles until the agent is interrupted."""
+    logging.basicConfig(
+        level=getattr(logging, LOG_LEVEL, logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     print("Resilio monitoring agent started.")
     print(f"Monitoring interval: {MONITOR_INTERVAL} seconds\n")
 
