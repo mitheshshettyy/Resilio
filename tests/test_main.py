@@ -1,4 +1,5 @@
 from agent.main import monitor_once
+from agent.recovery.manager import RecoveryManager
 
 
 def test_monitor_once_memory_recovery(monkeypatch):
@@ -222,3 +223,25 @@ def test_monitor_once_missing_network_does_not_attempt_recovery(monkeypatch):
     monitor_once(recovery_manager)
 
     assert recovery_manager.calls == []
+
+
+def test_monitor_once_reports_cooldown_without_executing_action(monkeypatch, capsys):
+    monkeypatch.setattr("agent.main.get_cpu_usage", lambda: 95)
+    monkeypatch.setattr("agent.main.get_memory_usage", lambda: 40)
+    monkeypatch.setattr("agent.main.get_disk_usage", lambda: 40)
+    monkeypatch.setattr("agent.main.get_process_info", lambda name: None)
+    monkeypatch.setattr("agent.main.get_network_info", lambda interface: None)
+
+    manager = RecoveryManager(clock=lambda: 10)
+    manager._get_state("cpu")["cooldown_until"] = 20
+    action_calls = []
+    monkeypatch.setattr(
+        manager,
+        "recover",
+        lambda component, **kwargs: action_calls.append(component),
+    )
+
+    monitor_once(manager)
+
+    assert action_calls == []
+    assert "cooldown_active" in capsys.readouterr().out
