@@ -9,6 +9,14 @@ load_dotenv()
 
 MONITOR_INTERVAL = int(os.getenv("MONITOR_INTERVAL", "5"))
 
+MAX_RECOVERY_ATTEMPTS = int(os.getenv("MAX_RECOVERY_ATTEMPTS", "2"))
+
+RECOVERY_COOLDOWN_SECONDS = int(
+    os.getenv("RECOVERY_COOLDOWN_SECONDS", "60")
+)
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
 CPU_WARNING_THRESHOLD = float(
     os.getenv("CPU_WARNING_THRESHOLD", "80")
 )
