@@ -1,3 +1,5 @@
+import time
+
 from agent.recovery.process import ProcessRecovery
 from agent.recovery.memory import MemoryRecovery
 from agent.recovery.cpu import CpuRecovery
@@ -7,6 +9,56 @@ from agent.recovery.network import NetworkRecovery
 
 class RecoveryManager:
     """Manages recovery actions for system components."""
+
+    MAX_RECOVERY_ATTEMPTS = 2
+    RECOVERY_COOLDOWN = 60
+
+    def __init__(self, clock=None):
+        self._clock = clock or time.monotonic
+        self._state = {}
+
+    def _get_state(self, component):
+        if component not in self._state:
+            self._state[component] = {
+                "attempt_count": 0,
+                "cooldown_until": None,
+                "last_outcome": None,
+            }
+
+        return self._state[component]
+
+    def _can_recover(self, component):
+        state = self._get_state(component)
+        current_time = self._clock()
+
+        if state["cooldown_until"] is not None:
+            if current_time < state["cooldown_until"]:
+                return False
+
+            state["cooldown_until"] = None
+            state["attempt_count"] = 0
+
+        if state["attempt_count"] >= self.MAX_RECOVERY_ATTEMPTS:
+            state["cooldown_until"] = (
+                current_time + self.RECOVERY_COOLDOWN
+            )
+            state["last_outcome"] = "COOLDOWN"
+            return False
+
+        return True
+
+    def _record_failure(self, component, outcome):
+        state = self._get_state(component)
+
+        state["attempt_count"] += 1
+        state["last_outcome"] = outcome
+
+    def _record_success(self, component):
+        state = self._get_state(component)
+
+        state["attempt_count"] = 0
+        state["cooldown_until"] = None
+        state["last_outcome"] = "RECOVERY_VERIFIED"
 
     def recover(self, component, **kwargs):
         """Dispatch a component recovery request after validating its inputs."""
