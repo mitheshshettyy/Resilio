@@ -29,6 +29,31 @@ def test_monitor_once_memory_recovery(monkeypatch):
     ]
 
 
+def test_monitor_once_continues_after_a_collector_failure(monkeypatch):
+    def failed_cpu_collection():
+        raise OSError("cpu collector unavailable")
+
+    monkeypatch.setattr("agent.main.get_cpu_usage", failed_cpu_collection)
+    monkeypatch.setattr("agent.main.get_memory_usage", lambda: 95)
+    monkeypatch.setattr("agent.main.get_disk_usage", lambda: 40)
+    monkeypatch.setattr("agent.main.get_process_info", lambda name: None)
+    monkeypatch.setattr("agent.main.get_network_info", lambda interface: None)
+
+    class FakeRecoveryManager:
+        def __init__(self):
+            self.calls = []
+
+        def recover_and_verify(self, component, context=None, **kwargs):
+            self.calls.append((component, kwargs))
+            return {"component": component, "status": "recovered"}
+
+    recovery_manager = FakeRecoveryManager()
+
+    monitor_once(recovery_manager)
+
+    assert recovery_manager.calls == [("memory", {})]
+
+
 def test_monitor_once_cpu_recovery(monkeypatch):
     monkeypatch.setattr("agent.main.get_cpu_usage", lambda: 95)
     monkeypatch.setattr("agent.main.get_memory_usage", lambda: 40)

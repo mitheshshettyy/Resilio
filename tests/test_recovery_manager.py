@@ -165,6 +165,40 @@ def test_manager_records_action_failure_without_verification(monkeypatch):
     assert verifier.calls == []
 
 
+def test_manager_contains_unexpected_recovery_action_error(monkeypatch):
+    manager = RecoveryManager()
+
+    def failed_action(component, **kwargs):
+        raise RuntimeError("action failed")
+
+    monkeypatch.setattr(manager, "recover", failed_action)
+
+    result = manager.recover_and_verify("cpu")
+
+    assert result["action_status"] == "recovery_failed"
+    assert result["verification_status"] == "not_attempted"
+    assert result["attempt_number"] == 1
+    assert result["reason"] == "action failed"
+
+
+def test_manager_contains_unexpected_verifier_error(monkeypatch):
+    class FailingVerifier:
+        def verify(self, component, context):
+            raise RuntimeError("fresh measurement unavailable")
+
+    manager = RecoveryManager(verifier=FailingVerifier())
+    monkeypatch.setattr(
+        manager, "recover", lambda component, **kwargs: {"status": "recovered"}
+    )
+
+    result = manager.recover_and_verify("cpu")
+
+    assert result["action_status"] == "recovered"
+    assert result["verification_status"] == "unverifiable"
+    assert result["attempt_number"] == 1
+    assert result["reason"] == "fresh measurement unavailable"
+
+
 def test_manager_marks_unavailable_network_recovery_unverifiable(monkeypatch):
     manager = RecoveryManager(verifier=FakeVerifier({"verification_status": "verified"}))
     monkeypatch.setattr(

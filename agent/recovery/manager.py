@@ -86,7 +86,18 @@ class RecoveryManager:
             )
 
         logger.info("Recovery attempted for component=%s", component)
-        action_result = self.recover(component, **kwargs)
+        try:
+            action_result = self.recover(component, **kwargs)
+        except Exception as error:
+            self._record_failure(component, "RECOVERY_ACTION_FAILED")
+            logger.exception("Recovery action raised an error for component=%s", component)
+            return self._result(
+                component,
+                action_status="recovery_failed",
+                verification_status="not_attempted",
+                reason=str(error),
+            )
+
         action_status = action_result["status"]
 
         if action_status not in {"recovered", "not_required"}:
@@ -114,7 +125,18 @@ class RecoveryManager:
             )
 
         logger.info("Recovery verification started for component=%s", component)
-        verification = self._verifier.verify(component, context)
+        try:
+            verification = self._verifier.verify(component, context)
+        except Exception as error:
+            self._record_failure(component, "RECOVERY_UNVERIFIABLE")
+            logger.exception("Recovery verification raised an error for component=%s", component)
+            return self._result(
+                component,
+                action_status=action_status,
+                verification_status="unverifiable",
+                reason=str(error),
+            )
+
         verification_status = verification["verification_status"]
 
         if verification_status == "verified":

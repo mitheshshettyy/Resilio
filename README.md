@@ -11,7 +11,7 @@ Resilio is an infrastructure monitoring and auto-recovery agent that continuousl
 - **Memory Reclamation**: Executes Python runtime garbage collection with pre- and post-execution metric verification.
 - **Defensive Process Recovery**: Safely terminates unresponsive or out-of-bounds target processes with PID validation and termination timeouts.
 - **Guarded Disk & Network Recovery**: Non-destructive abstractions that avoid unauthorized cleanup or interface disruption by default, supporting pluggable cleanup and restart hooks.
-- **Automated Test Suite**: 74 unit and integration tests covering collectors, health evaluation, and recovery workflows.
+- **Automated Test Suite**: Unit and integration tests covering collectors, health evaluation, recovery workflows, retry/cooldown state, and verification.
 
 ## Architecture
 
