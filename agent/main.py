@@ -20,20 +20,39 @@ from .recovery.manager import RecoveryManager
 logger = logging.getLogger(__name__)
 
 
+def _collect(component, collector, *args):
+    """Collect one component's data without stopping the rest of a cycle."""
+    try:
+        return True, collector(*args)
+    except Exception:
+        logger.exception("Collection failed for component=%s", component)
+        return False, None
+
+
 def monitor_once(recovery_manager):
     """Collect metrics, classify their health, and recover critical components."""
 
-    cpu_usage = get_cpu_usage()
-    memory_usage = get_memory_usage()
-    disk_usage = get_disk_usage()
-    process_info = get_process_info(PROCESS_NAME)
-    network_info = get_network_info(NETWORK_INTERFACE)
+    cpu_collected, cpu_usage = _collect("cpu", get_cpu_usage)
+    memory_collected, memory_usage = _collect("memory", get_memory_usage)
+    disk_collected, disk_usage = _collect("disk", get_disk_usage)
+    process_collected, process_info = _collect(
+        "process", get_process_info, PROCESS_NAME
+    )
+    network_collected, network_info = _collect(
+        "network", get_network_info, NETWORK_INTERFACE
+    )
 
-    cpu_status = get_cpu_status(cpu_usage)
-    memory_status = get_memory_status(memory_usage)
-    disk_status = get_disk_status(disk_usage)
-    process_status = get_process_status(process_info)
-    network_status = get_network_status(network_info)
+    cpu_status = get_cpu_status(cpu_usage) if cpu_collected else "UNAVAILABLE"
+    memory_status = (
+        get_memory_status(memory_usage) if memory_collected else "UNAVAILABLE"
+    )
+    disk_status = get_disk_status(disk_usage) if disk_collected else "UNAVAILABLE"
+    process_status = (
+        get_process_status(process_info) if process_collected else "UNAVAILABLE"
+    )
+    network_status = (
+        get_network_status(network_info) if network_collected else "UNAVAILABLE"
+    )
 
     if cpu_status == "CRITICAL":
         result = recovery_manager.recover_and_verify("cpu")
