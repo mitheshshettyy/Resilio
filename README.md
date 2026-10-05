@@ -6,6 +6,7 @@ Resilio is an infrastructure monitoring and auto-recovery agent that continuousl
 
 - **System Telemetry**: Continuous collection of CPU, memory, root disk, network interface, and process metrics via `psutil`.
 - **Tri-State Health Evaluation**: Classifies component states into `HEALTHY`, `WARNING`, or `CRITICAL` based on configurable thresholds.
+- **Monitoring Pipeline**: Each cycle independently collects, evaluates, decides, recovers, verifies, and reports CPU, memory, disk, process, and network outcomes as structured results.
 - **Verified Recovery Dispatch**: Centralized `RecoveryManager` performs a recovery action, collects fresh health evidence through `RecoveryVerifier`, and applies the Phase 6 retry/cooldown policy per component.
 - **Safe CPU Relief**: Identifies and terminates verified high-CPU candidate processes while excluding protected OS processes and the agent itself.
 - **Memory Reclamation**: Executes Python runtime garbage collection with pre- and post-execution metric verification.
@@ -78,7 +79,8 @@ Resilio is an infrastructure monitoring and auto-recovery agent that continuousl
                                                      │
                                                      ▼
                                           ┌──────────────────────┐
-                                          │ Recovery Result      │
+                                          │ Structured Cycle     │
+                                          │ Result               │
                                           │                      │
                                           │ Recovered            │
                                           │ Failed               │
