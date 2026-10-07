@@ -216,3 +216,61 @@ def test_recover_process_rejects_invalid_pid(mock_process):
 
     mock_process.assert_not_called()
     assert result["status"] == "invalid_pid"
+
+
+def test_process_start_unavailable_without_starter_hook():
+    recovery = ProcessRecovery(starter=None)
+
+    result = recovery.start("python.exe")
+
+    assert result == {
+        "component": "process",
+        "status": "recovery_unavailable",
+    }
+
+
+def test_process_start_executes_starter_hook_successfully():
+    called_with = []
+
+    def starter(name):
+        called_with.append(name)
+        return 4321
+
+    recovery = ProcessRecovery(starter=starter)
+    result = recovery.start("python.exe")
+
+    assert called_with == ["python.exe"]
+    assert result == {
+        "component": "process",
+        "status": "recovered",
+        "process_name": "python.exe",
+        "pid": 4321,
+    }
+
+
+def test_process_start_handles_starter_exception():
+    def failing_starter(name):
+        raise OSError("failed to launch process")
+
+    recovery = ProcessRecovery(starter=failing_starter)
+    result = recovery.start("python.exe")
+
+    assert result["status"] == "recovery_failed"
+    assert "failed to launch process" in result["reason"]
+
+
+def test_invalid_starter_result_is_handled_safely():
+    recovery = ProcessRecovery(starter=lambda name: False)
+    result = recovery.start("python.exe")
+    assert result["status"] == "recovery_failed"
+
+    recovery_negative_pid = ProcessRecovery(starter=lambda name: -1)
+    result_neg = recovery_negative_pid.start("python.exe")
+    assert result_neg["status"] == "recovery_failed"
+    assert result_neg["reason"] == "invalid_pid"
+
+
+def test_process_start_rejects_invalid_process_name():
+    recovery = ProcessRecovery(starter=lambda name: 1234)
+    result = recovery.start("")
+    assert result["status"] == "invalid_arguments"

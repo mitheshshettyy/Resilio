@@ -282,3 +282,83 @@ def test_manager_maintains_independent_component_state(monkeypatch):
 
     assert manager._get_state("cpu")["attempt_count"] == 1
     assert memory_result["attempt_number"] == 1
+
+
+def test_manager_verified_process_recovery_resets_attempt_count(monkeypatch):
+    verifier = FakeVerifier(
+        {
+            "component": "process",
+            "verification_status": "verified",
+            "health_status": "HEALTHY",
+        }
+    )
+    manager = RecoveryManager(verifier=verifier)
+    manager._get_state("process")["attempt_count"] = 1
+    monkeypatch.setattr(
+        manager, "recover", lambda component, **kwargs: {"status": "recovered"}
+    )
+
+    result = manager.recover_and_verify("process", pid=1234)
+
+    assert result["attempt_number"] == 0
+    assert result["retry_remaining"] == manager.MAX_RECOVERY_ATTEMPTS
+    assert manager._get_state("process")["last_outcome"] == "RECOVERY_VERIFIED"
+
+
+def test_manager_missing_process_dispatches_restart_when_configured():
+    verifier = FakeVerifier(
+        {
+            "component": "process",
+            "verification_status": "verified",
+            "health_status": "HEALTHY",
+        }
+    )
+    starter_calls = []
+
+    def starter(name):
+        starter_calls.append(name)
+        return 7890
+
+    manager = RecoveryManager(verifier=verifier, process_starter=starter)
+    assert manager.can_restart_process() is True
+
+    result = manager.recover_and_verify(
+        "process", action="start", process_name="python.exe"
+    )
+
+    assert starter_calls == ["python.exe"]
+    assert result["action_status"] == "recovered"
+    assert result["verification_status"] == "verified"
+
+
+def test_manager_restart_failure_participates_in_retry_state():
+    def failing_starter(name):
+        raise OSError("failed to launch")
+
+    manager = RecoveryManager(process_starter=failing_starter)
+    result = manager.recover_and_verify(
+        "process", action="start", process_name="python.exe"
+    )
+
+    assert result["action_status"] == "recovery_failed"
+    assert result["attempt_number"] == 1
+    assert result["retry_remaining"] == 1
+
+
+def test_manager_cooldown_triggers_after_repeated_failed_restarts():
+    now = [100]
+
+    def failing_starter(name):
+        raise OSError("launch error")
+
+    manager = RecoveryManager(clock=lambda: now[0], process_starter=failing_starter)
+
+    manager.recover_and_verify("process", action="start", process_name="python.exe")
+    manager.recover_and_verify("process", action="start", process_name="python.exe")
+    cooldown = manager.recover_and_verify(
+        "process", action="start", process_name="python.exe"
+    )
+
+    assert cooldown["action_status"] == "not_attempted"
+    assert cooldown["reason"] == "cooldown_active"
+    assert cooldown["cooldown_until"] == 160

@@ -19,13 +19,19 @@ from .monitoring import MonitoringPipeline, MonitoringTarget
 
 def monitor_once(recovery_manager):
     """Run, print, and return one structured monitoring cycle."""
-    result = MonitoringPipeline(recovery_manager, _monitoring_targets()).run()
+    result = MonitoringPipeline(
+        recovery_manager, _monitoring_targets(recovery_manager)
+    ).run()
     _print_cycle_result(result)
     return result
 
 
-def _monitoring_targets():
+def _monitoring_targets(recovery_manager=None):
     """Build monitoring targets while retaining the existing collector contracts."""
+    starter_configured = bool(
+        recovery_manager
+        and getattr(recovery_manager, "can_restart_process", lambda: False)()
+    )
     return [
         MonitoringTarget("cpu", get_cpu_usage, get_cpu_status, _no_arguments),
         MonitoringTarget("memory", get_memory_usage, get_memory_status, _no_arguments),
@@ -34,7 +40,9 @@ def _monitoring_targets():
             "process",
             lambda: get_process_info(PROCESS_NAME),
             get_process_status,
-            _process_recovery_arguments,
+            lambda info: _process_recovery_arguments(
+                info, starter_configured=starter_configured
+            ),
         ),
         MonitoringTarget(
             "network",
@@ -49,10 +57,18 @@ def _no_arguments(measurement):
     return {}, {}
 
 
-def _process_recovery_arguments(process_info):
+def _process_recovery_arguments(process_info, starter_configured=False):
     if process_info is None:
+        if starter_configured:
+            return (
+                {"process_name": PROCESS_NAME},
+                {"action": "start", "process_name": PROCESS_NAME},
+            )
         return {}, None
-    return {"process_name": PROCESS_NAME}, {"pid": process_info["pid"]}
+    return (
+        {"process_name": PROCESS_NAME, "target_pid": process_info["pid"]},
+        {"pid": process_info["pid"]},
+    )
 
 
 def _network_recovery_arguments(network_info):

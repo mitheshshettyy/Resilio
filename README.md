@@ -10,8 +10,8 @@ Resilio is an infrastructure monitoring and auto-recovery agent that continuousl
 - **Verified Recovery Dispatch**: Centralized `RecoveryManager` performs a recovery action, collects fresh health evidence through `RecoveryVerifier`, and applies the Phase 6 retry/cooldown policy per component.
 - **Safe CPU Relief**: Identifies and terminates verified high-CPU candidate processes while excluding protected OS processes and the agent itself.
 - **Memory Reclamation**: Executes Python runtime garbage collection with pre- and post-execution metric verification.
-- **Defensive Process Recovery**: Safely terminates unresponsive or out-of-bounds target processes with PID validation and termination timeouts.
-- **Guarded Disk & Network Recovery**: Non-destructive abstractions that avoid unauthorized cleanup or interface disruption by default, supporting pluggable cleanup and restart hooks.
+- **Defensive Process Recovery**: Safely terminates unresponsive or out-of-bounds target processes with PID validation and termination timeouts. Supports guarded, opt-in process restart through pluggable starter hooks.
+- **Guarded Disk, Network & Process Recovery**: Non-destructive abstractions that avoid unauthorized cleanup, interface disruption, or arbitrary command execution by default, supporting pluggable cleanup, restart, and process starter hooks.
 - **Automated Test Suite**: Unit and integration tests covering collectors, health evaluation, recovery workflows, retry/cooldown state, and verification.
 
 ## Architecture
@@ -193,10 +193,14 @@ Monitor → Detect → Recover → Verify → Success / Retry / Cooldown
 - **Self-Protection**: Compares candidate process IDs against `os.getpid()` to prevent terminating the agent itself.
 - **Protected System Processes**: Never terminates critical operating system processes (including `system`, `services.exe`, `lsass.exe`, `csrss.exe`, `wininit.exe`, and `dwm.exe`).
 - **Post-Action Verification**: Actions report `recovered` only if post-recovery measurements confirm a reduction in resource usage or verified process termination.
-- **Fresh Policy Verification**: After an action, `RecoveryVerifier` reads current CPU, memory, disk, or network health. `HEALTHY` and `WARNING` are verified outcomes; `CRITICAL` is not verified. Process verification remains explicitly unsupported until it has a defined fresh-health contract.
+- **Fresh Policy Verification**: After an action, `RecoveryVerifier` reads current CPU, memory, disk, network, or process health. `HEALTHY` and `WARNING` are verified outcomes; `CRITICAL` is not verified. Process termination verifies that the targeted PID is no longer running and inspects replacement process health if present.
 - **Bounded Retries**: The existing Phase 6 policy allows two consecutive unverified results per component. The following request enters a configurable cooldown. A verified result resets that component's state; other components are unaffected.
 - **Recovery Logs**: Standard Python logging records each request, action, verification result, failed outcome, and cooldown suppression. Configure `LOG_LEVEL` for runtime visibility.
-- **Conservative Disk & Network Strategy**: Does not delete files or reset interfaces by default. These modules return `recovery_unavailable` unless an explicit, managed cleanup function or platform-specific restart action is provided.
+- **Conservative Disk, Network & Process Strategy**: Does not delete files, reset interfaces, or execute arbitrary shell commands by default. These modules return `recovery_unavailable` unless an explicit, managed cleanup function, network restart action, or process starter hook is provided. Missing processes remain safely unattempted unless a starter hook is configured.
+
+## Known Limitations
+
+- **Single Process Match**: `get_process_info(process_name)` inspects the first accessible process returned by `psutil.process_iter()`. Multiple concurrent instances sharing the exact same executable name are not individually orchestrated in this phase.
 
 ## Testing
 

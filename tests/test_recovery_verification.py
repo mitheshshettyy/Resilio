@@ -56,8 +56,59 @@ def test_network_verification_is_unverifiable_without_interface():
     assert "interface" in result["reason"]
 
 
-def test_process_verification_is_explicitly_unverifiable():
-    result = RecoveryVerifier().verify("process", {"process_name": "python.exe"})
+def test_process_verification_succeeds_when_terminated_pid_is_gone(monkeypatch):
+    verifier = RecoveryVerifier(pid_exists_func=lambda pid: False)
+    monkeypatch.setattr(
+        "agent.recovery.verification.get_process_info", lambda name: None
+    )
+
+    result = verifier.verify("process", {"target_pid": 1234, "process_name": "python.exe"})
+
+    assert result["verification_status"] == "verified"
+
+
+def test_process_verification_fails_when_target_pid_still_exists():
+    verifier = RecoveryVerifier(pid_exists_func=lambda pid: True)
+
+    result = verifier.verify("process", {"target_pid": 1234, "process_name": "python.exe"})
+
+    assert result["verification_status"] == "not_verified"
+    assert "1234" in result["reason"]
+    assert "still running" in result["reason"]
+
+
+def test_process_verification_succeeds_when_replacement_process_is_healthy(monkeypatch):
+    verifier = RecoveryVerifier(pid_exists_func=lambda pid: False)
+    monkeypatch.setattr(
+        "agent.recovery.verification.get_process_info",
+        lambda name: {"pid": 5678, "name": name, "cpu_percent": 10, "memory_percent": 10},
+    )
+
+    result = verifier.verify("process", {"target_pid": 1234, "process_name": "python.exe"})
+
+    assert result["verification_status"] == "verified"
+    assert result["health_status"] == "HEALTHY"
+    assert result["measurement"]["pid"] == 5678
+
+
+def test_process_verification_fails_when_replacement_process_is_critical(monkeypatch):
+    verifier = RecoveryVerifier(pid_exists_func=lambda pid: False)
+    monkeypatch.setattr(
+        "agent.recovery.verification.get_process_info",
+        lambda name: {"pid": 5678, "name": name, "cpu_percent": 99, "memory_percent": 90},
+    )
+
+    result = verifier.verify("process", {"target_pid": 1234, "process_name": "python.exe"})
+
+    assert result["verification_status"] == "not_verified"
+    assert result["health_status"] == "CRITICAL"
+    assert "CRITICAL" in result["reason"]
+
+
+def test_process_verification_handles_missing_process_name_or_pid():
+    verifier = RecoveryVerifier()
+
+    result = verifier.verify("process", {})
 
     assert result["verification_status"] == "unverifiable"
-    assert "unsupported" in result["reason"]
+    assert "requires target_pid or process_name" in result["reason"]
