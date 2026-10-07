@@ -19,10 +19,15 @@ class RecoveryManager:
     MAX_RECOVERY_ATTEMPTS = MAX_RECOVERY_ATTEMPTS
     RECOVERY_COOLDOWN = RECOVERY_COOLDOWN_SECONDS
 
-    def __init__(self, clock=None, verifier=None):
+    def __init__(self, clock=None, verifier=None, process_starter=None):
         self._clock = clock or time.monotonic
         self._state = {}
         self._verifier = verifier or RecoveryVerifier()
+        self._process_starter = process_starter
+
+    def can_restart_process(self):
+        """Return True if an optional process starter is configured."""
+        return self._process_starter is not None
 
     def _get_state(self, component):
         if component not in self._state:
@@ -73,7 +78,12 @@ class RecoveryManager:
 
     def recover_and_verify(self, component, context=None, **kwargs):
         """Apply the existing policy around an action and fresh verification."""
-        context = context or {}
+        context = dict(context or {})
+        if component == "process":
+            if "pid" in kwargs and "target_pid" not in context:
+                context["target_pid"] = kwargs["pid"]
+            if "process_name" in kwargs and "process_name" not in context:
+                context["process_name"] = kwargs["process_name"]
         logger.info("Recovery requested for component=%s", component)
 
         if not self._can_recover(component):
@@ -195,12 +205,23 @@ class RecoveryManager:
         """Dispatch a component recovery request after validating its inputs."""
 
         if component == "process":
+            action = kwargs.get("action")
+            if action == "start":
+                process_name = kwargs.get("process_name")
+                if not process_name:
+                    return {
+                        "component": "process",
+                        "status": "invalid_arguments",
+                    }
+                recovery = ProcessRecovery(starter=self._process_starter)
+                return recovery.start(process_name)
+
             if "pid" not in kwargs:
                 return {
                     "component": "process",
                     "status": "invalid_arguments",
                 }
-            recovery = ProcessRecovery()
+            recovery = ProcessRecovery(starter=self._process_starter)
             return recovery.recover(kwargs["pid"])
 
         if component == "memory":

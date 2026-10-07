@@ -21,6 +21,9 @@ PROTECTED_PROCESS_NAMES = {
 class ProcessRecovery:
     """Handles recovery operations for processes."""
 
+    def __init__(self, starter=None):
+        self.starter = starter
+
     @staticmethod
     def iter_processes(attributes):
         """Provide an overridable process iterator for recovery discovery."""
@@ -116,6 +119,62 @@ class ProcessRecovery:
 
         except psutil.TimeoutExpired:
             return self._result(pid, "recovery_failed")
+
+    def start(self, process_name):
+        """Start a process using the configured starter hook."""
+        if not process_name or not isinstance(process_name, str):
+            return {
+                "component": "process",
+                "status": "invalid_arguments",
+            }
+
+        if self.starter is None:
+            return {
+                "component": "process",
+                "status": "recovery_unavailable",
+            }
+
+        try:
+            starter_result = self.starter(process_name)
+        except Exception as error:
+            return {
+                "component": "process",
+                "status": "recovery_failed",
+                "reason": str(error),
+            }
+
+        if starter_result is False or starter_result is None:
+            return {
+                "component": "process",
+                "status": "recovery_failed",
+                "reason": "starter returned failure",
+            }
+
+        result = {
+            "component": "process",
+            "status": "recovered",
+            "process_name": process_name,
+        }
+
+        if isinstance(starter_result, int) and not isinstance(starter_result, bool):
+            if starter_result <= 0:
+                return {
+                    "component": "process",
+                    "status": "recovery_failed",
+                    "reason": "invalid_pid",
+                }
+            result["pid"] = starter_result
+        elif isinstance(starter_result, dict) and "pid" in starter_result:
+            pid = starter_result["pid"]
+            if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+                return {
+                    "component": "process",
+                    "status": "recovery_failed",
+                    "reason": "invalid_pid",
+                }
+            result["pid"] = pid
+
+        return result
 
     @staticmethod
     def _result(pid, status):
