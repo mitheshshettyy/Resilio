@@ -9,7 +9,7 @@ Resilio is an infrastructure monitoring and auto-recovery agent that continuousl
 - **Monitoring Pipeline**: Each cycle independently collects, evaluates, decides, recovers, verifies, and reports CPU, memory, disk, process, and network outcomes as structured results.
 - **Verified Recovery Dispatch**: Centralized `RecoveryManager` performs a recovery action, collects fresh health evidence through `RecoveryVerifier`, and applies the Phase 6 retry/cooldown policy per component.
 - **Safe CPU Relief**: Identifies and terminates verified high-CPU candidate processes while excluding protected OS processes and the agent itself.
-- **Memory Reclamation**: Executes Python runtime garbage collection with pre- and post-execution metric verification.
+- **Memory Reclamation**: Executes in-process Python runtime garbage collection with pre- and post-execution metric verification to reclaim agent-level memory safely without touching third-party processes.
 - **Defensive Process Recovery**: Safely terminates unresponsive or out-of-bounds target processes with PID validation and termination timeouts. Supports guarded, opt-in process restart through pluggable starter hooks.
 - **Guarded Disk, Network & Process Recovery**: Non-destructive abstractions that avoid unauthorized cleanup, interface disruption, or arbitrary command execution by default, supporting pluggable cleanup, restart, and process starter hooks.
 - **Automated Test Suite**: Unit and integration tests covering collectors, health evaluation, recovery workflows, retry/cooldown state, and verification.
@@ -201,6 +201,7 @@ Monitor → Detect → Recover → Verify → Success / Retry / Cooldown
 ## Known Limitations
 
 - **Single Process Match**: `get_process_info(process_name)` inspects the first accessible process returned by `psutil.process_iter()`. Multiple concurrent instances sharing the exact same executable name are not individually orchestrated in this phase.
+- **Memory Recovery Scope & System Memory Pressure**: `MemoryRecovery` only performs in-process Python runtime garbage collection (`gc.collect()`) within the monitoring agent's own runtime. It deliberately avoids terminating arbitrary third-party processes, manipulating OS virtual memory, or dropping kernel file system caches. Consequently, if system-wide memory exhaustion is caused by external applications, `gc.collect()` will not decrease system memory usage, and Resilio will safely report `recovery_failed` (engaging bounded retries and cooldown) rather than performing unguided destructive interventions.
 
 ## Testing
 
