@@ -1,3 +1,5 @@
+from unittest.mock import patch, MagicMock
+
 from agent.recovery.cpu import CpuRecovery
 
 
@@ -274,3 +276,91 @@ def test_get_cpu_processes_skips_none_cpu_and_missing_metadata(monkeypatch):
 
     assert len(results) == 1
     assert results[0] == {"pid": 503, "name": "good.exe", "cpu_percent": 70.0}
+
+
+def test_get_cpu_processes_records_create_time_when_available(monkeypatch):
+    """Processes with create_time metadata include it in the returned dictionary."""
+    proc = MockProcess(601, "timed_proc.exe", [0.0, 85.0])
+    proc.info["create_time"] = 1600000000.0
+
+    monkeypatch.setattr(
+        "agent.recovery.cpu.ProcessRecovery.iter_processes",
+        lambda attrs: [proc],
+    )
+
+    recovery = CpuRecovery(sample_interval=0.0, sleep_func=lambda s: None)
+    results = recovery.get_cpu_processes()
+
+    assert len(results) == 1
+    assert results[0] == {
+        "pid": 601,
+        "name": "timed_proc.exe",
+        "cpu_percent": 85.0,
+        "create_time": 1600000000.0,
+    }
+
+
+def test_cpu_recovery_prevents_terminating_reused_pid(monkeypatch):
+    """When a PID is reused by another process before termination, recovery aborts safely."""
+    usages = iter([95, 95])
+    recovery = CpuRecovery(threshold=90, process_threshold=80)
+    monkeypatch.setattr("agent.recovery.cpu.get_cpu_usage", lambda: next(usages))
+    monkeypatch.setattr(
+        recovery,
+        "get_cpu_processes",
+        lambda: [
+            {
+                "pid": 20,
+                "name": "worker.exe",
+                "cpu_percent": 90,
+                "create_time": 100.0,
+            }
+        ],
+    )
+
+    with patch("agent.recovery.process.psutil.Process") as mock_psutil_proc:
+        # Replacement process has inherited PID 20 but has different create_time
+        reused_process = mock_psutil_proc.return_value
+        reused_process.name.return_value = "worker.exe"
+        reused_process.create_time.return_value = 200.0
+
+        result = recovery.recover()
+
+        # The replacement process must NEVER be terminated
+        reused_process.terminate.assert_not_called()
+        assert result["status"] == "recovery_failed"
+        assert result["reason"] == "identity_mismatch"
+        assert result["pid"] == 20
+
+
+def test_cpu_recovery_terminates_process_when_identity_verified(monkeypatch):
+    """When PID, name, and create_time all match, recovery proceeds to terminate."""
+    usages = iter([95, 40])
+    recovery = CpuRecovery(threshold=90, process_threshold=80)
+    monkeypatch.setattr("agent.recovery.cpu.get_cpu_usage", lambda: next(usages))
+    monkeypatch.setattr(
+        recovery,
+        "get_cpu_processes",
+        lambda: [
+            {
+                "pid": 20,
+                "name": "worker.exe",
+                "cpu_percent": 90,
+                "create_time": 100.0,
+            }
+        ],
+    )
+
+    with patch("agent.recovery.process.psutil.Process") as mock_psutil_proc:
+        verified_proc = mock_psutil_proc.return_value
+        verified_proc.name.return_value = "worker.exe"
+        verified_proc.create_time.return_value = 100.0
+
+        result = recovery.recover()
+
+        verified_proc.terminate.assert_called_once()
+        verified_proc.wait.assert_called_once_with(timeout=5)
+        assert result["status"] == "recovered"
+        assert result["pid"] == 20
+        assert result["before"] == 95
+        assert result["after"] == 40

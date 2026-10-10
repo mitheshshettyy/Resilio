@@ -92,7 +92,7 @@ class ProcessRecovery:
 
         return None
 
-    def recover(self, pid):
+    def recover(self, pid, expected_name=None, expected_create_time=None):
         """Terminate a validated non-system process and verify that it stopped."""
         if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
             return self._result(pid, "invalid_pid")
@@ -105,6 +105,20 @@ class ProcessRecovery:
 
             if process.name().lower() in PROTECTED_PROCESS_NAMES:
                 return self._result(pid, "protected_process")
+
+            if expected_name is not None:
+                proc_name = process.name()
+                if not isinstance(proc_name, str) or proc_name.lower() != expected_name.lower():
+                    return self._result(pid, "identity_mismatch")
+
+            if expected_create_time is not None:
+                proc_create_time = (
+                    process.create_time()
+                    if callable(getattr(process, "create_time", None))
+                    else getattr(process, "create_time", None)
+                )
+                if proc_create_time is None or abs(proc_create_time - expected_create_time) > 1e-3:
+                    return self._result(pid, "identity_mismatch")
 
             process.terminate()
             process.wait(timeout=5)

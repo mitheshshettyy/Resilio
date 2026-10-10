@@ -1,3 +1,5 @@
+import pytest
+
 from agent.recovery.disk import DiskRecovery
 
 
@@ -62,3 +64,42 @@ def test_disk_recovery_handles_cleanup_permission_error(monkeypatch):
 
     assert result["status"] == "recovery_failed"
     assert result["reason"] == "denied"
+
+
+def test_disk_recovery_handles_cleanup_runtime_error(monkeypatch):
+    monkeypatch.setattr("agent.recovery.disk.get_disk_usage", lambda: 95)
+
+    def failing_cleanup():
+        raise RuntimeError("cleanup script crashed")
+
+    result = DiskRecovery(threshold=90, cleanup=failing_cleanup).recover()
+
+    assert result["status"] == "recovery_failed"
+    assert result["reason"] == "cleanup script crashed"
+    assert result["before"] == 95
+    assert result["after"] == 95
+
+
+def test_disk_recovery_handles_unexpected_exception(monkeypatch):
+    monkeypatch.setattr("agent.recovery.disk.get_disk_usage", lambda: 95)
+
+    def failing_cleanup():
+        raise ValueError("invalid cleanup path configuration")
+
+    result = DiskRecovery(threshold=90, cleanup=failing_cleanup).recover()
+
+    assert result["status"] == "recovery_failed"
+    assert result["reason"] == "invalid cleanup path configuration"
+    assert result["before"] == 95
+    assert result["after"] == 95
+
+
+def test_disk_recovery_propagates_base_exception(monkeypatch):
+    monkeypatch.setattr("agent.recovery.disk.get_disk_usage", lambda: 95)
+
+    def fatal_cleanup():
+        raise KeyboardInterrupt()
+
+    recovery = DiskRecovery(threshold=90, cleanup=fatal_cleanup)
+    with pytest.raises(KeyboardInterrupt):
+        recovery.recover()

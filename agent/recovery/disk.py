@@ -26,7 +26,7 @@ class DiskRecovery:
 
         try:
             cleanup_succeeded = self.cleanup()
-        except (OSError, PermissionError) as error:
+        except Exception as error:
             return self._result("recovery_failed", before, before, str(error))
 
         after = get_disk_usage()

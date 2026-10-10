@@ -274,3 +274,119 @@ def test_process_start_rejects_invalid_process_name():
     recovery = ProcessRecovery(starter=lambda name: 1234)
     result = recovery.start("")
     assert result["status"] == "invalid_arguments"
+
+
+@patch("agent.recovery.process.psutil.Process")
+def test_recover_process_refuses_when_name_mismatches(mock_process):
+    process = mock_process.return_value
+    process.name.return_value = "replacement.exe"
+
+    recovery = ProcessRecovery()
+    result = recovery.recover(1234, expected_name="worker.exe")
+
+    mock_process.assert_called_once_with(1234)
+    process.terminate.assert_not_called()
+    assert result == {
+        "component": "process",
+        "pid": 1234,
+        "status": "identity_mismatch",
+    }
+
+
+@patch("agent.recovery.process.psutil.Process")
+def test_recover_process_refuses_when_create_time_mismatches(mock_process):
+    process = mock_process.return_value
+    process.name.return_value = "worker.exe"
+    process.create_time.return_value = 200.0
+
+    recovery = ProcessRecovery()
+    result = recovery.recover(
+        1234, expected_name="worker.exe", expected_create_time=100.0
+    )
+
+    mock_process.assert_called_once_with(1234)
+    process.terminate.assert_not_called()
+    assert result == {
+        "component": "process",
+        "pid": 1234,
+        "status": "identity_mismatch",
+    }
+
+
+@patch("agent.recovery.process.psutil.Process")
+def test_recover_process_refuses_pid_reused_by_protected_process(mock_process):
+    process = mock_process.return_value
+    process.name.return_value = "lsass.exe"
+    process.create_time.return_value = 200.0
+
+    recovery = ProcessRecovery()
+    result = recovery.recover(
+        1234, expected_name="worker.exe", expected_create_time=100.0
+    )
+
+    mock_process.assert_called_once_with(1234)
+    process.terminate.assert_not_called()
+    assert result == {
+        "component": "process",
+        "pid": 1234,
+        "status": "protected_process",
+    }
+
+
+@patch("agent.recovery.process.psutil.Process")
+def test_recover_process_succeeds_when_identity_matches(mock_process):
+    process = mock_process.return_value
+    process.name.return_value = "worker.exe"
+    process.create_time.return_value = 100.0
+
+    recovery = ProcessRecovery()
+    result = recovery.recover(
+        1234, expected_name="worker.exe", expected_create_time=100.0
+    )
+
+    mock_process.assert_called_once_with(1234)
+    process.terminate.assert_called_once()
+    process.wait.assert_called_once_with(timeout=5)
+    assert result == {
+        "component": "process",
+        "pid": 1234,
+        "status": "recovered",
+    }
+
+
+@patch("agent.recovery.process.psutil.Process")
+def test_recover_process_handles_nosuchprocess_during_identity_check(mock_process):
+    process = mock_process.return_value
+    process.name.return_value = "worker.exe"
+    process.create_time.side_effect = psutil.NoSuchProcess(1234)
+
+    recovery = ProcessRecovery()
+    result = recovery.recover(
+        1234, expected_name="worker.exe", expected_create_time=100.0
+    )
+
+    process.terminate.assert_not_called()
+    assert result == {
+        "component": "process",
+        "pid": 1234,
+        "status": "not_found",
+    }
+
+
+@patch("agent.recovery.process.psutil.Process")
+def test_recover_process_handles_accessdenied_during_identity_check(mock_process):
+    process = mock_process.return_value
+    process.name.return_value = "worker.exe"
+    process.create_time.side_effect = psutil.AccessDenied(1234)
+
+    recovery = ProcessRecovery()
+    result = recovery.recover(
+        1234, expected_name="worker.exe", expected_create_time=100.0
+    )
+
+    process.terminate.assert_not_called()
+    assert result == {
+        "component": "process",
+        "pid": 1234,
+        "status": "access_denied",
+    }
