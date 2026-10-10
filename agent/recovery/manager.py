@@ -222,7 +222,12 @@ class RecoveryManager:
                     "status": "invalid_arguments",
                 }
             recovery = ProcessRecovery(starter=self._process_starter)
-            return recovery.recover(kwargs["pid"])
+            extra_kwargs = {}
+            if "expected_name" in kwargs:
+                extra_kwargs["expected_name"] = kwargs["expected_name"]
+            if "expected_create_time" in kwargs:
+                extra_kwargs["expected_create_time"] = kwargs["expected_create_time"]
+            return recovery.recover(kwargs["pid"], **extra_kwargs)
 
         if component == "memory":
             recovery = MemoryRecovery()

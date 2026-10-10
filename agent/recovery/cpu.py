@@ -1,3 +1,4 @@
+import inspect
 import time
 
 from agent.collectors.cpu import get_cpu_usage
@@ -28,7 +29,7 @@ class CpuRecovery:
         interval, and a second pass measures the actual CPU percentage elapsed.
         """
         procs = []
-        for process in ProcessRecovery.iter_processes(["pid", "name"]):
+        for process in ProcessRecovery.iter_processes(["pid", "name", "create_time"]):
             try:
                 # First call primes the CPU counter (psutil returns 0.0 on initial call)
                 process.cpu_percent(None)
@@ -66,13 +67,23 @@ class CpuRecovery:
                 if pid is None or name is None:
                     continue
 
-                processes.append(
-                    {
-                        "pid": pid,
-                        "name": name,
-                        "cpu_percent": cpu_percent,
-                    }
-                )
+                proc_data = {
+                    "pid": pid,
+                    "name": name,
+                    "cpu_percent": cpu_percent,
+                }
+
+                create_time = info.get("create_time")
+                if create_time is None and callable(getattr(process, "create_time", None)):
+                    try:
+                        create_time = process.create_time()
+                    except ProcessRecovery.process_errors():
+                        create_time = None
+
+                if create_time is not None:
+                    proc_data["create_time"] = create_time
+
+                processes.append(proc_data)
             except ProcessRecovery.process_errors():
                 # Process terminated or permission denied during sampling
                 continue
@@ -100,7 +111,28 @@ class CpuRecovery:
         if candidate is None:
             return self._result("no_safe_candidate", before, before)
 
-        process_result = ProcessRecovery().recover(candidate["pid"])
+        proc_recovery = ProcessRecovery()
+        call_kwargs = {}
+        if "name" in candidate:
+            call_kwargs["expected_name"] = candidate["name"]
+        if "create_time" in candidate:
+            call_kwargs["expected_create_time"] = candidate["create_time"]
+
+        try:
+            sig = inspect.signature(proc_recovery.recover)
+            accepts_kwargs = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD
+                for p in sig.parameters.values()
+            )
+            filtered = {
+                k: v
+                for k, v in call_kwargs.items()
+                if accepts_kwargs or k in sig.parameters
+            }
+            process_result = proc_recovery.recover(candidate["pid"], **filtered)
+        except TypeError:
+            process_result = proc_recovery.recover(candidate["pid"])
+
         after = get_cpu_usage()
 
         if process_result["status"] == "recovered" and after < before:

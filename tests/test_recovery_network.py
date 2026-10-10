@@ -1,3 +1,6 @@
+import subprocess
+import pytest
+
 from agent.recovery.network import NetworkRecovery
 
 
@@ -76,3 +79,54 @@ def test_network_recovery_reports_failed_verification(monkeypatch):
     result = NetworkRecovery(restart_interface=lambda interface: True).recover("Wi-Fi")
 
     assert result["status"] == "recovery_failed"
+
+
+def test_network_recovery_handles_called_process_error(monkeypatch):
+    monkeypatch.setattr(
+        "agent.recovery.network.get_network_info",
+        lambda interface: {"interface": interface, "is_up": False},
+    )
+
+    def failing_restart(interface):
+        raise subprocess.CalledProcessError(
+            returncode=1,
+            cmd=["netsh", "interface", "set", "interface", interface, "admin=enable"],
+        )
+
+    result = NetworkRecovery(restart_interface=failing_restart).recover("Wi-Fi")
+
+    assert result["status"] == "recovery_failed"
+    assert "netsh" in result["reason"]
+    assert result["interface"] == "Wi-Fi"
+    assert result["before"]["is_up"] is False
+    assert result["after"]["is_up"] is False
+
+
+def test_network_recovery_handles_runtime_error(monkeypatch):
+    monkeypatch.setattr(
+        "agent.recovery.network.get_network_info",
+        lambda interface: {"interface": interface, "is_up": False},
+    )
+
+    def failing_restart(interface):
+        raise RuntimeError("restart command timed out")
+
+    result = NetworkRecovery(restart_interface=failing_restart).recover("Wi-Fi")
+
+    assert result["status"] == "recovery_failed"
+    assert result["reason"] == "restart command timed out"
+    assert result["interface"] == "Wi-Fi"
+
+
+def test_network_recovery_propagates_base_exception(monkeypatch):
+    monkeypatch.setattr(
+        "agent.recovery.network.get_network_info",
+        lambda interface: {"interface": interface, "is_up": False},
+    )
+
+    def fatal_restart(interface):
+        raise KeyboardInterrupt()
+
+    recovery = NetworkRecovery(restart_interface=fatal_restart)
+    with pytest.raises(KeyboardInterrupt):
+        recovery.recover("Wi-Fi")

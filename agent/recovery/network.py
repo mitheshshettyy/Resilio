@@ -24,7 +24,7 @@ class NetworkRecovery:
             restart_succeeded = self.restart_interface(interface_name)
         except PermissionError:
             return self._result("permission_denied", interface_name, before, before)
-        except OSError as error:
+        except Exception as error:
             return self._result(
                 "recovery_failed", interface_name, before, before, str(error)
             )
